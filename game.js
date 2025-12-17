@@ -1280,6 +1280,7 @@ function renderCharacterList() {
   const container = document.getElementById('character-list');
   const emptyState = document.getElementById('empty-state');
   if (!container || !emptyState) return;
+
   container.innerHTML = '';
   if (characters.length === 0) {
     container.classList.add('hidden');
@@ -1288,6 +1289,7 @@ function renderCharacterList() {
     if (total) total.textContent = '0';
     return;
   }
+
   container.classList.remove('hidden');
   emptyState.classList.add('hidden');
 
@@ -1295,6 +1297,18 @@ function renderCharacterList() {
     const div = document.createElement('div');
     div.className = "bg-white dark:bg-slate-700 p-4 rounded-xl border border-slate-200 dark:border-slate-600 shadow-sm relative group hover:shadow-md transition-shadow cursor-pointer";
     const moodMeta = getMoodMeta(char.mood || 'normal');
+    
+    // [수정] 성별에 따른 프로필 배경색 설정
+    let genderClass = "bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-400"; // 기본(알수없음)
+    
+    if (char.gender === 'male') {
+        genderClass = "bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300";
+    } else if (char.gender === 'female') {
+        genderClass = "bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-300";
+    } else if (char.gender === 'nonbinary') {
+        genderClass = "bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-300";
+    }
+
     if (affectionMode) {
       div.onclick = () => showAffectionModal(char.id);
       div.innerHTML = `
@@ -1313,7 +1327,7 @@ function renderCharacterList() {
       div.innerHTML = `
         <button onclick="removeCharacter('${char.id}')" class="absolute top-2 right-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-1"><i class="fa-solid fa-times"></i></button>
         <div class="flex items-center gap-3 mb-3">
-          <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-600 flex items-center justify-center text-lg"><i class="fa-regular fa-user"></i></div>
+          <div class="w-10 h-10 rounded-full ${genderClass} flex items-center justify-center text-lg"><i class="fa-regular fa-user"></i></div>
           <div class="min-w-0">
             <div class="flex items-center gap-2 min-w-0">
               <span class="w-2.5 h-2.5 rounded-full ${moodMeta.dotClass}" title="${moodMeta.name}"></span>
@@ -1858,3 +1872,4 @@ function saveRelationshipsToTxt() {
   document.body.removeChild(a);
 
 }
+
