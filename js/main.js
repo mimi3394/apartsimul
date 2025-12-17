@@ -60,9 +60,10 @@ function addCharacter() {
       
       if (attendees.length > 0) {
           const attendeeNames = attendees.map(c => c.name).join(', ');
-          const shortNames = attendees.length > 3 ? `${attendees[0].name} 등 ${attendees.length}명` : attendeeNames;
-          logText += `\n📢 ${shortNames}이(가) 나와서 이사 떡을 나눠 먹었다.`;
-      } else {
+          logText += `\n📢 이웃 ${attendees.length}명이 나와서 반갑게 이사 떡을 나눠 먹었습니다.`;
+          logText += `\n(참석자: ${attendeeNames})`;
+      } 
+      else {
           logText += `\n🍃 하지만 아무도 나와보지 않아 조금 썰렁했다...`;
       }
       
@@ -373,6 +374,7 @@ window.closeModal = closeModal;
 window.openRelationshipMap = openRelationshipMap;
 window.closeRelationshipMap = closeRelationshipMap;
 window.clearLogs = clearLogs;
+
 
 
 
