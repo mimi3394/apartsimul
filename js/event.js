@@ -328,11 +328,11 @@ export function nextDay() {
               if (attendees.includes(c) && attendees.includes(target)) {
                   const chem = calculateChemistry(c, target);
                   if (chem >= 20) {
-                      score += 15; // 잘 맞음 (호감 상승)
+                      score += 5; // 잘 맞음 (호감 상승)
                   } else if (chem >= -10) {
-                      score += 5;  // 평범
+                      score += 2;  // 평범
                   } else {
-                      score -= 20; // 안 맞음 (오히려 깎임!)
+                      score -= 3; // 안 맞음 (오히려 깎임!)
                   }
               }
 
