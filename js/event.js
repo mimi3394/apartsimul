@@ -290,56 +290,45 @@ export function nextDay() {
   
   // ★★★ [1. 스토리 모드: 1일차 특수 로직 수정] ★★★
   if (gameState.day === 1) {
-      // 1. 오프닝 멘트
-      dailyLogs.push({ text: "✨ 신축 아파트에 입주가 시작되었습니다! 과연 이곳에서 운명의 사랑을 찾을 수 있을까요?", type: 'event' });
-      
-      // 2. 참석자 명단 생성 (성격에 따라 결정)
+      // 1. 참석자 결정 (성격에 따라)
       const attendees = gameState.characters.filter(c => willAttendEvent(c));
-      const absentees = gameState.characters.filter(c => !attendees.includes(c));
-
-      // 3. 참석자 로그 출력 (누가 왔는지 보여줌!)
-      if (attendees.length > 0) {
-          const names = attendees.map(c => c.name).join(', ');
-          dailyLogs.push({ text: `📢 떡 돌리기 행사에 ${attendees.length}명이 참석했습니다: ${names}`, type: 'social' });
+      
+      // 로그 출력
+      dailyLogs.push({ text: "✨ 신축 아파트 입주 시작! 설레는 첫 만남의 날입니다.", type: 'event' });
+      if (attendees.length < gameState.characters.length) {
+          dailyLogs.push({ text: `📢 입주민 ${attendees.length}명이 모여 떡을 돌리며 인사를 나눴습니다. (몇몇은 나오지 않았습니다)`, type: 'social' });
       } else {
-          dailyLogs.push({ text: "📢 아무도 떡 돌리기 행사에 나오지 않았습니다... 삭막하네요.", type: 'solo' });
+          dailyLogs.push({ text: "📢 입주민 전원이 모여 떡을 돌리며 훈훈한 첫인사를 나눴습니다.", type: 'social' });
       }
+      
+      // 2. 참석자들끼리만 관계 형성
+      attendees.forEach(charA => {
+          setMood(charA, 'happy'); // 나온 사람은 기분 좋음
+          charA.currentAction = "입주 인사";
 
-      // 4. 모든 캐릭터 상태 및 관계 설정
+          attendees.forEach(charB => {
+              if (charA.id === charB.id) return;
+
+              // 첫인상 + 궁합 계산 (최대 5~6점 내외)
+              let score = calculateFirstImpression(charA, charB);
+              const chem = calculateChemistry(charA, charB);
+              
+              if (chem >= 20) score += 3;
+              else if (chem >= -10) score += 1;
+              else score -= 2;
+
+              if (!charA.relationships) charA.relationships = {};
+              charA.relationships[charB.id] = score;
+          });
+      });
+
+      // 안 나온 사람들은 방에 있음
       gameState.characters.forEach(c => {
-          c.currentLocation = 'apt';
-          
-          if (attendees.includes(c)) {
-              c.currentAction = '떡 돌리기 참석';
-              setMood(c, 'happy');
-          } else {
-              c.currentAction = '방에서 짐 정리';
+          if (!attendees.includes(c)) {
+              c.currentLocation = 'apt';
+              c.currentAction = '짐 정리(두문불출)';
               setMood(c, 'normal');
           }
-          
-          // 관계 형성 (참석자끼리만 대화 보너스/패널티)
-          gameState.characters.forEach(target => {
-              if (c.id === target.id) return;
-
-              // (1) 기본 첫인상 점수 (무조건 적용)
-              let score = calculateFirstImpression(c, target);
-
-              // (2) '둘 다' 참석했을 때만 대화 발생 (궁합 적용)
-              if (attendees.includes(c) && attendees.includes(target)) {
-                  const chem = calculateChemistry(c, target);
-                  if (chem >= 20) {
-                      score += 5; // 잘 맞음 (호감 상승)
-                  } else if (chem >= -10) {
-                      score += 2;  // 평범
-                  } else {
-                      score -= 3; // 안 맞음 (오히려 깎임!)
-                  }
-              }
-
-              // 초기 관계 저장
-              if (!c.relationships) c.relationships = {};
-              c.relationships[target.id] = score;
-          });
       });
       
       // 5. 마무리
@@ -1050,3 +1039,4 @@ export function nextDay() {
     requestAnimationFrame(() => drawRelationshipMap());
   }
 }
+
