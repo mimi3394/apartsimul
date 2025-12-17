@@ -1219,8 +1219,18 @@ function findEmptyRoom() {
   characters.forEach(c => { 
     if (counts[c.room] !== undefined) counts[c.room]++; 
   });
+
+  const emptyRooms = Object.keys(counts).filter(room => counts[room] === 0);
+
+  if (emptyRooms.length > 0) {
+    const randomIndex = Math.floor(Math.random() * emptyRooms.length);
+    return emptyRooms[randomIndex];
+  }
+
   const availableRooms = Object.keys(counts).filter(room => counts[room] < 4);
-  if (availableRooms.length === 0) return null;
+
+  if (availableRooms.length === 0) return null; // 방이 꽉 참
+
   const randomIndex = Math.floor(Math.random() * availableRooms.length);
   return availableRooms[randomIndex];
 }
@@ -1872,4 +1882,5 @@ function saveRelationshipsToTxt() {
   document.body.removeChild(a);
 
 }
+
 
