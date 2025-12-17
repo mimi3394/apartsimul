@@ -47,6 +47,7 @@ function addCharacter() {
     specialRelations: {},
     mood: 'normal'
   };
+}
 
   gameState.characters.push(newChar);
 
@@ -374,6 +375,7 @@ window.closeModal = closeModal;
 window.openRelationshipMap = openRelationshipMap;
 window.closeRelationshipMap = closeRelationshipMap;
 window.clearLogs = clearLogs;
+
 
 
 
