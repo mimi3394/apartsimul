@@ -4,7 +4,7 @@ import { gameState, setCharacters, resetLogs } from './state.js';
 import { 
     renderCharacterList, renderLocations, updateUI, 
     initSajuSelect, initRoomSelect, renderStatusTable, clearLogs, 
-    toggleTheme, switchTab, openRelationshipMap, closeRelationshipMap,
+    toggleTheme, openRelationshipMap, closeRelationshipMap,
     drawRelationshipMap, showAffectionModal, closeModal, renderLogs // <--- renderLogs 추가됨
 } from './ui.js';
 import { nextDay } from './event.js';
@@ -347,3 +347,4 @@ window.closeModal = closeModal;
 window.openRelationshipMap = openRelationshipMap;
 window.closeRelationshipMap = closeRelationshipMap;
 window.clearLogs = clearLogs;
+
