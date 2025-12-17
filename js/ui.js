@@ -283,18 +283,22 @@ export function updateUI() {
 export function initSajuSelect() {
   const ganSelect = document.getElementById('input-gan');
   const jiSelect = document.getElementById('input-ji');
+  
   if (!ganSelect || !jiSelect) return;
+
   ganSelect.innerHTML = '';
-  GAN_ORDER.forEach(gan => {
+  GAN_ORDER.forEach((gan, index) => {
     const opt = document.createElement('option');
     opt.value = gan;
     opt.text = gan;
+    if (index === 0) opt.selected = true;
     ganSelect.appendChild(opt);
   });
   ganSelect.addEventListener('change', () => {
     updateJiOptions(ganSelect.value, jiSelect);
   });
-  updateJiOptions(ganSelect.value, jiSelect);
+  const firstValue = ganSelect.value || GAN_ORDER[0];
+  updateJiOptions(firstValue, jiSelect);
 }
 
 export function updateJiOptions(selectedGan, jiSelect) {
@@ -498,4 +502,5 @@ export function drawRelationshipMap() {
     const name = node.char.name || "";
     ctx.fillText(name, node.x, node.y);
   });
+
 }
