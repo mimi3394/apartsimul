@@ -280,7 +280,7 @@ function processNursingEvents(dailyLogs) {
   });
 }
 
-// ★★★ 여기가 제일 중요한 다음날 진행 함수 ★★★
+
 export function nextDay() {
   if (gameState.characters.length === 0) {
     alert("최소 1명의 캐릭터가 필요합니다.");
@@ -289,6 +289,46 @@ export function nextDay() {
   
   const dailyLogs = [];
   
+  if (gameState.day === 1) {
+      // 1. 오프닝 멘트
+      dailyLogs.push({ text: "✨ 신축 아파트에 입주가 시작되었습니다! 과연 이곳에서 운명의 사랑을 찾을 수 있을까요?", type: 'event' });
+      dailyLogs.push({ text: "📢 입주민들이 모두 모여 떡을 돌리며 설레는 첫인사를 나누었습니다.", type: 'social' });
+      
+      // 2. 모든 캐릭터 상태 설정 (이사옴, 인사함)
+      gameState.characters.forEach(c => {
+          c.currentLocation = 'apt';     // 모두 아파트에 있음
+          c.currentAction = '짐 정리 및 인사'; // 행동 통일
+          setMood(c, 'happy');           // 기분 좋음
+          
+          // 3. 서로 안면 트기 (모든 사람과 호감도 +5)
+          gameState.characters.forEach(target => {
+              if (c.id !== target.id) {
+                  updateRelationship(c.id, target.id, 5);
+              }
+          });
+      });
+      
+      // 4. 마무리 및 화면 갱신 (일반 로직 건너뜀)
+      updateAllMoods();
+      const logsWithDay = dailyLogs.map(log => ({ ...log, day: gameState.day }));
+      gameState.logs = [...logsWithDay, ...gameState.logs];
+      renderLogs(dailyLogs);
+      
+      gameState.day++; // 날짜 넘기기
+      renderStatusTable();
+      renderLocations();
+      updateUI();
+      
+      if (!document.getElementById('relationship-map-modal')?.classList.contains('hidden')) {
+        requestAnimationFrame(() => drawRelationshipMap());
+      }
+      return; // 여기서 1일차 종료!
+  }
+
+  // ============================================================
+  // 아래는 기존의 2일차 이후 로직 (원래 코드 그대로)
+  // ============================================================
+
   processColdwarTimers(dailyLogs);
   processCutTimers(dailyLogs); 
 
