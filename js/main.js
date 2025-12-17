@@ -76,41 +76,31 @@ function addCharacter() {
       gameState.logs.unshift(moveInLog);
       renderLogs([moveInLog]);
 
+      // 3. 관계 형성 (참석한 사람끼리만!!)
       gameState.characters.forEach(existing => {
           if (existing.id === newChar.id) return;
-
-          // (1) 첫인상 점수 (성격 + 랜덤) - 딱 봤을 때 느낌
-          let scoreForNewcomer = calculateFirstImpression(existing, newChar);
-          let scoreForExisting = calculateFirstImpression(newChar, existing);
-
-          // (2) 참석자와의 대화 결과 (궁합 반영)
-          // js/main.js (약 80번째 줄 근처)
-
-          // (2) 참석자와의 대화 결과 (궁합 반영)
           if (attendees.includes(existing)) {
-              // 둘의 사주 궁합 계산
+              let scoreForNewcomer = calculateFirstImpression(existing, newChar);
+              let scoreForExisting = calculateFirstImpression(newChar, existing);
               const chem = calculateChemistry(existing, newChar);
-
               if (chem >= 20) {
-                  scoreForNewcomer += 5;
-                  scoreForExisting += 5;
+                  scoreForNewcomer += 3; // 궁합 좋음
+                  scoreForExisting += 3;
               } else if (chem >= -10) {
-                  scoreForNewcomer += 2;
-                  scoreForExisting += 2;
+                  scoreForNewcomer += 1; // 보통
+                  scoreForExisting += 1;
               } else {
-                  scoreForNewcomer -= 3;
-                  scoreForExisting -= 3;
+                  scoreForNewcomer -= 2; // 나쁨 (깎임)
+                  scoreForExisting -= 2;
               }
-          } 
- 
 
-          if (!existing.relationships) existing.relationships = {};
-          if (!newChar.relationships) newChar.relationships = {};
-          
-          existing.relationships[newChar.id] = scoreForNewcomer;
-          newChar.relationships[existing.id] = scoreForExisting;
+              if (!existing.relationships) existing.relationships = {};
+              if (!newChar.relationships) newChar.relationships = {};
+              
+              existing.relationships[newChar.id] = scoreForNewcomer;
+              newChar.relationships[existing.id] = scoreForExisting;
+          }
       });
-  }
 
   nameInput.value = '';
   renderCharacterList();
@@ -121,7 +111,6 @@ function addCharacter() {
 function removeCharacter(id) {
   if (!confirm("삭제하시겠습니까?")) return;
   const newChars = gameState.characters.filter(c => c.id !== id);
-  // 관계 데이터에서도 삭제
   newChars.forEach(c => {
     delete c.relationships[id];
     if (c.specialRelations) delete c.specialRelations[id];
@@ -385,6 +374,7 @@ window.closeModal = closeModal;
 window.openRelationshipMap = openRelationshipMap;
 window.closeRelationshipMap = closeRelationshipMap;
 window.clearLogs = clearLogs;
+
 
 
 
