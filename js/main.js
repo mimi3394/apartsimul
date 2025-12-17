@@ -100,8 +100,7 @@ function addCharacter() {
               newChar.relationships[existing.id] = scoreForExisting;
           }
       });
-  } // <--- ★★★ 여기가 빠져 있었습니다! (if 문 닫기)
-
+  }
   nameInput.value = '';
   renderCharacterList();
   renderLocations();
@@ -374,6 +373,7 @@ window.closeModal = closeModal;
 window.openRelationshipMap = openRelationshipMap;
 window.closeRelationshipMap = closeRelationshipMap;
 window.clearLogs = clearLogs;
+
 
 
 
