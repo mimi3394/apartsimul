@@ -1,5 +1,5 @@
 import { 
-  FIVE_ELEMENTS, CONTROLS, PRODUCES, HAP_PAIRS, CHUNG_PAIRS, WONJIN_PAIRS, TEMPERATURE 
+  FIVE_ELEMENTS, CONTROLS, PRODUCES, HAP_PAIRS, CHUNG_PAIRS, WONJIN_PAIRS, TEMPERATURE, GAPJA_PERSONALITIES 
 } from './data.js';
 
 export function calculateChemistry(charA, charB) {
@@ -84,6 +84,23 @@ export function calculateDirectionalScore(fromChar, toChar) {
   }
   if (myEl === yourEl) baseScore += 5;
   return baseScore;
+}
+
+export function willAttendEvent(char) {
+  const trait = GAPJA_PERSONALITIES[char.mbti];
+  if (!trait) return true;
+  const chance = trait.social;
+  return Math.random() * 100 < chance;
+}
+
+export function calculateFirstImpression(observer, newcomer) {
+  const trait = GAPJA_PERSONALITIES[observer.mbti] || { kindness: 0 };
+  let baseRandom = (Math.random() * 40) - 20;
+  let personalityBonus = trait.kindness;
+  let chemistry = calculateChemistry(observer, newcomer);
+  let chemBonus = chemistry * 0.1;
+  let finalScore = baseRandom + personalityBonus + chemBonus;
+  return Math.round(finalScore);
 }
 
 export function getRelationshipLabel(score, specialStatus) {
