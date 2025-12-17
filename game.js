@@ -714,24 +714,21 @@ function nextDay() {
 
         const scoreForActor = calculateDirectionalScore(actor, target);
         const scoreForTarget = calculateDirectionalScore(target, actor);
-        const currentScore = actor.relationships[target.id] || 0;
+        const currentActorScore = actor.relationships[target.id] || 0;
+        const currentTargetScore = target.relationships[actor.id] || 0;
 
+        // 2. 관계 상태 확인
         const specialBetween = getSpecialStatusBetween(actor, target);
         const isLovers = (specialBetween === 'lover');
         const isMarried = (specialBetween === 'married');
         const isColdwar = (specialBetween === 'coldwar');
 
-        const actorScore = actor.relationships[target.id] || 0;
-        const targetScore = target.relationships[actor.id] || 0;
-
-        if (!isTravel && !isMarried && isLovers && actorScore >= 200 && targetScore >= 200 && Math.random() < 0.08) {
+        if (!isTravel && !isMarried && isLovers && currentActorScore >= 200 && currentTargetScore >= 200 && Math.random() < 0.08) {
           setSpecialStatus(actor.id, target.id, 'married');
           setSpecialStatus(target.id, actor.id, 'married');
           clearColdwarPair(actor, target);
-          actor.currentAction = "결혼";
-          target.currentAction = "결혼";
-          setMood(actor, 'happy');
-          setMood(target, 'happy');
+          actor.currentAction = "결혼"; target.currentAction = "결혼";
+          setMood(actor, 'happy'); setMood(target, 'happy');
           dailyLogs.push({
             text: `[결혼] ${actor.name}${getJosa(actor.name,'와/과')} ${target.name}${getJosa(target.name,'은/는')} 결혼했다! 💍`,
             type: 'love'
@@ -739,70 +736,67 @@ function nextDay() {
           continue;
         }
 
+        // [이벤트 확률 계산]
         const ganA = actor.mbti[0]; const jiA = actor.mbti[1];
         const ganB = target.mbti[0]; const jiB = target.mbti[1];
         const isDoubleChung = (CHUNG_PAIRS[ganA] === ganB && CHUNG_PAIRS[jiA] === jiB);
         const isWonjin = (WONJIN_PAIRS[jiA] === jiB);
 
-        let eventProb = 0.25;
-        if (isDoubleChung || isWonjin) eventProb = 0.65;
+        let eventProb = 0.25; // 기본 확률 (25%)
+        if (isDoubleChung || isWonjin) eventProb = 0.65; // 도파민 관계 (65%)
+        if (!isLovers && !isMarried) {
+             if (currentActorScore >= 90) eventProb = 0.95;
+             else if (currentActorScore >= 70) eventProb = 0.60;
+        }
 
+        // 3. 이벤트 발생 로직
         if (Math.random() < eventProb && !isTravel) {
           let evt = getRandom(EVENTS);
           
-          // [추가] 고백 확률 보정
-          if (!isLovers && !isMarried) {
-             if (currentScore >= 80) {
+          if (!isLovers && !isMarried && !isColdwar) {
+             if (currentActorScore >= 90) {
+                 // 90점 이상이면 80% 확률로 '고백' 선택 (다른 이벤트 무시)
+                 if (Math.random() < 0.80) evt = EVENTS.find(e => e.type === 'confess') || evt;
+             } else if (currentActorScore >= 70) {
+                 // 70점 이상이면 40% 확률로 '고백' 선택
                  if (Math.random() < 0.40) evt = EVENTS.find(e => e.type === 'confess') || evt;
-             } else if (currentScore >= 60) {
-                 if (Math.random() < 0.15) evt = EVENTS.find(e => e.type === 'confess') || evt;
              }
           }
 
           if (isColdwar && Math.random() < 0.9) {
             evt = EVENTS.find(e => e.type === 'reconcile') || evt;
-            const actorHates = (actor.relationships[target.id] || 0) < 0;
-            const targetHates = (target.relationships[actor.id] || 0) < 0;
-            if (evt.type === 'reconcile' && !(isColdwar || actorHates || targetHates)) {
-              const safePool = EVENTS.filter(e => ['friend','gift','club','secret'].includes(e.type));
-              evt = safePool.length ? getRandom(safePool) : EVENTS.find(e => e.type === 'friend') || evt;
-            }
           }
 
           const actorHasPartner = Object.values(actor.specialRelations || {}).some(v => v === 'lover' || v === 'married');
           const targetHasPartner = Object.values(target.specialRelations || {}).some(v => v === 'lover' || v === 'married');
 
           if (evt.type === 'blind' && (actorHasPartner || targetHasPartner)) evt = getRandom(EVENTS);
-          if (evt.type === 'date' && !(isLovers || currentScore >= 60)) evt = getRandom(EVENTS);
-          if (evt.type === 'secret' && currentScore < 20 && !isDoubleChung && !isWonjin) {
+          if (evt.type === 'date' && !(isLovers || currentActorScore >= 60)) evt = getRandom(EVENTS);
+          if (evt.type === 'secret' && currentActorScore < 20 && !isDoubleChung && !isWonjin) {
              evt = getRandom(EVENTS);
           }
 
           let logText = "";
 
           if (evt.type === 'reconcile') {
-             const actorHates = (actor.relationships[target.id] || 0) < 0;
-             const targetHates = (target.relationships[actor.id] || 0) < 0;
+             const actorHates = currentActorScore < 0;
+             const targetHates = currentTargetScore < 0;
              if (actorHates || targetHates || isColdwar) {
                if (isColdwar) {
                  const meta = actor.coldwarMeta?.[target.id];
                  const duration = meta?.duration || 3;
                  const bigFight = duration >= 5;
                  const cutChanceLate = bigFight ? 0.25 : 0.15;
-
                  if (!canReconcileColdwar(actor, target)) {
-                   if (Math.random() < cutChanceLate) {
-                     breakUpPair(actor, target, '절교', dailyLogs);
-                   } else {
-                     updateRelationship(actor.id, target.id, 2);
-                     updateRelationship(target.id, actor.id, 2);
+                   if (Math.random() < cutChanceLate) breakUpPair(actor, target, '절교', dailyLogs);
+                   else {
+                     updateRelationship(actor.id, target.id, 2); updateRelationship(target.id, actor.id, 2);
                      logText = `[화해 실패] ${actor.name}${getJosa(actor.name, '와/과')} ${target.name}${getJosa(target.name, '은/는')} 화해를 시도했지만 아직 풀리지 않았다.`;
                      actor.currentAction = evt.name; target.currentAction = evt.name;
                      dailyLogs.push({ text: logText, type: 'event' });
                    }
                  } else {
-                   updateRelationship(actor.id, target.id, 15);
-                   updateRelationship(target.id, actor.id, 15);
+                   updateRelationship(actor.id, target.id, 15); updateRelationship(target.id, actor.id, 15);
                    clearColdwarPair(actor, target);
                    logText = `[${evt.name}] ${actor.name}${getJosa(actor.name, '와/과')} ${target.name}${getJosa(target.name, '은/는')} 서로 사과하고 화해했다.`;
                    actor.currentAction = evt.name; target.currentAction = evt.name;
@@ -810,16 +804,14 @@ function nextDay() {
                    dailyLogs.push({ text: logText, type: 'event' });
                  }
                } else {
-                 updateRelationship(actor.id, target.id, 15);
-                 updateRelationship(target.id, actor.id, 15);
+                 updateRelationship(actor.id, target.id, 15); updateRelationship(target.id, actor.id, 15);
                  logText = `[${evt.name}] ${actor.name}${getJosa(actor.name, '와/과')} ${target.name}${getJosa(target.name, '은/는')} 서로 사과하고 화해했다.`;
                  actor.currentAction = evt.name; target.currentAction = evt.name;
                  setMood(actor, 'normal'); setMood(target, 'normal');
                  dailyLogs.push({ text: logText, type: 'event' });
                }
              } else {
-               updateRelationship(actor.id, target.id, 5);
-               updateRelationship(target.id, actor.id, 5);
+               updateRelationship(actor.id, target.id, 5); updateRelationship(target.id, actor.id, 5);
                logText = `${actor.name}${getJosa(actor.name, '와/과')} ${target.name}${getJosa(target.name, '은/는')} 사이좋게 대화를 나눴다.`;
                actor.currentAction = "대화"; target.currentAction = "대화";
                dailyLogs.push({ text: logText, type: 'social' });
@@ -838,10 +830,14 @@ function nextDay() {
                 actor.currentAction = evt.name; target.currentAction = `(대상) ${evt.name}`;
                 setMood(actor, 'happy'); setMood(target, 'happy');
                 dailyLogs.push({ text: logText, type: 'love' });
-             } else if (currentScore > 50) {
-                 const chemBonus = (chemistryScore - 3) * 0.05;
-                 const successChance = 0.48 + (currentScore / 180) + chemBonus;
+             } else if (currentActorScore > 50) {
+                 // 성공 확률: 상대방(Target)이 나(Actor)를 얼마나 좋아하는지 + 궁합 보너스
+                 const chemBonus = (calculateChemistry(actor, target) - 3) * 0.05;
+                 // 200점 만점이므로, 호감도 100점이면 50% + 기본 30% = 80% 확률
+                 const successChance = 0.30 + (currentTargetScore / 200) + chemBonus;
+                 
                  if (Math.random() < successChance) {
+                     // 환승 이별 처리
                      const oldLoverId = getCurrentLoverId(actor);
                      if (oldLoverId && oldLoverId !== target.id) {
                        const oldLover = characters.find(c => c.id === oldLoverId);
@@ -852,6 +848,8 @@ function nextDay() {
                        const old = characters.find(c => c.id === targetOldLoverId);
                        if (old) breakUpPair(target, old, '갈아타기', dailyLogs);
                      }
+                     
+                     // 커플 성사!
                      setSpecialStatus(actor.id, target.id, 'lover');
                      setSpecialStatus(target.id, actor.id, 'lover');
                      clearColdwarPair(actor, target);
@@ -862,10 +860,13 @@ function nextDay() {
                      actor.currentAction = evt.name; target.currentAction = `(대상) ${evt.name}`;
                      dailyLogs.push({ text: logText, type: 'love' });
                  } else {
-                     updateRelationship(actor.id, target.id, -5); updateRelationship(target.id, actor.id, -2);
+                     // 차임
+                     updateRelationship(actor.id, target.id, -5); 
+                     // 차이면 상대방은 나를 좀 불편해함 (-2)
+                     updateRelationship(target.id, actor.id, -2);
                      if (Math.random() < 0.35) markColdwarPair(actor, target);
                      setMood(actor, 'sad');
-                     logText = `[고백 실패] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 차였다...`;
+                     logText = `[고백 실패] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 차였다... (상대 호감도: ${currentTargetScore}점)`;
                      actor.currentAction = evt.name; target.currentAction = `(대상) ${evt.name}`;
                      dailyLogs.push({ text: logText, type: 'event' });
                  }
@@ -876,13 +877,14 @@ function nextDay() {
              }
           }
           else if (evt.type === 'breakup') {
+              // ... (기존 이별 로직 유지) ...
               if (isMarried) {
                 updateRelationship(actor.id, target.id, -2); updateRelationship(target.id, actor.id, -2);
                 logText = `[위기] ${actor.name}${getJosa(actor.name, '와/과')} ${target.name}${getJosa(target.name, '은/는')} 다퉜지만 결혼 관계는 유지했다. 💍`;
                 actor.currentAction = evt.name; target.currentAction = evt.name;
                 dailyLogs.push({ text: logText, type: 'breakup' });
               } else if (isLovers) {
-                if (Math.random() < 0.3 - (currentScore / 200)) {
+                if (Math.random() < 0.3 - (currentActorScore / 200)) {
                   setSpecialStatus(actor.id, target.id, null); setSpecialStatus(target.id, actor.id, null);
                   updateRelationship(actor.id, target.id, -25); updateRelationship(target.id, actor.id, -25);
                   setMood(actor, 'sad'); setMood(target, 'sad');
@@ -901,6 +903,7 @@ function nextDay() {
               }
           }
           else {
+            // 그 외 일반 이벤트 (싸움, 선물, 데이트 등)
             if (evt.type === 'cut' && isLovers) {
               breakUpPair(actor, target, '절교', dailyLogs);
             } else {
@@ -935,6 +938,7 @@ function nextDay() {
           }
         }
         else {
+          // [대화(상호작용) 로직] - 이벤트가 안 떴을 때
           let action = null;
           if (isTravel) {
             action = ACTIONS.find(a => a.id === 'travel');
@@ -951,6 +955,8 @@ function nextDay() {
           }
 
           const processedText = fillTemplate(getRandom(action.text));
+          
+          // 비대칭 호감도 변화
           const changeForActor = getProbabilisticChange(scoreForActor);
           const changeForTarget = getProbabilisticChange(scoreForTarget);
           
@@ -1879,6 +1885,7 @@ function saveRelationshipsToTxt() {
   document.body.removeChild(a);
 
 }
+
 
 
 
