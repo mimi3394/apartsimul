@@ -522,16 +522,18 @@ function nextDay() {
     return;
   }
   
-  day++;
   const dailyLogs = [];
+  
+  // 각종 타이머 처리 (냉전, 절교 등)
   processColdwarTimers(dailyLogs);
   processCutTimers(dailyLogs); 
 
+  // 1. 컨디션(아픔) 체크 및 초기화
   characters.forEach(c => {
-    c.isNursing = false;
+    c.isNursing = false; 
     c.hasNurse = false;
 
-    if (Math.random() < 0.01) {
+    if (Math.random() < 0.01) { 
       setMood(c, 'sick');
       c.currentAction = '아픔';
       c.currentLocation = 'apt';
@@ -541,16 +543,15 @@ function nextDay() {
     }
   });
 
-  // 2. [신규] 간호 이벤트 실행! 🚑
+  // 2. 간호 이벤트 실행
   processNursingEvents(dailyLogs);
 
-  // 3. 장소 정하기
+  // 3. 장소 정하기 (간호 중인 사람 제외)
   characters.forEach(char => {
-    // 간호 중이거나(간호사), 간호 받는 사람(환자)은 장소 이동 금지 (아파트 고정)
     if (char.isNursing || char.hasNurse) {
       char.currentLocation = 'apt';
       return;
-    }  
+    }
     if (char.mood === 'sick') {
       char.currentLocation = 'apt';
       return;
@@ -564,10 +565,10 @@ function nextDay() {
     }
   });
 
+  // 4. 그룹 형성
   const locationMap = {};
   characters.forEach(char => {
     if (char.isNursing || char.hasNurse) return;
-
     if (!locationMap[char.currentLocation]) locationMap[char.currentLocation] = [];
     locationMap[char.currentLocation].push(char);
   });
@@ -601,6 +602,7 @@ function nextDay() {
         if (lowestRel < -50) avoidChance = 0.8;
         else if (lowestRel < -20) avoidChance = 0.5;
         else if (lowestRel < 0) avoidChance = 0.2;
+        
         let hasColdwarInGroup = false;
         for (let i = 0; i < potentialGroup.length; i++) {
           for (let j = i + 1; j < potentialGroup.length; j++) {
@@ -712,7 +714,6 @@ function nextDay() {
 
         const scoreForActor = calculateDirectionalScore(actor, target);
         const scoreForTarget = calculateDirectionalScore(target, actor);
-          
         const currentScore = actor.relationships[target.id] || 0;
 
         const specialBetween = getSpecialStatusBetween(actor, target);
@@ -748,22 +749,16 @@ function nextDay() {
 
         if (Math.random() < eventProb && !isTravel) {
           let evt = getRandom(EVENTS);
+          
+          // [추가] 고백 확률 보정
+          if (!isLovers && !isMarried) {
+             if (currentScore >= 80) {
+                 if (Math.random() < 0.40) evt = EVENTS.find(e => e.type === 'confess') || evt;
+             } else if (currentScore >= 60) {
+                 if (Math.random() < 0.15) evt = EVENTS.find(e => e.type === 'confess') || evt;
+             }
+          }
 
-          if (!isLovers && !isMarried) { 
-              
-              // 1. 호감도 80점 이상 (거의 확실): 40% 확률로 강제 고백 시도
-              if (currentScore >= 80) {
-                  if (Math.random() < 0.40) {
-                      evt = EVENTS.find(e => e.type === 'confess');
-                  }
-              }
-              // 2. 호감도 60점 이상 (썸): 15% 확률로 강제 고백 시도
-              else if (currentScore >= 60) {
-                  if (Math.random() < 0.15) {
-                       evt = EVENTS.find(e => e.type === 'confess');
-                  }
-              }
-          }  
           if (isColdwar && Math.random() < 0.9) {
             evt = EVENTS.find(e => e.type === 'reconcile') || evt;
             const actorHates = (actor.relationships[target.id] || 0) < 0;
@@ -958,7 +953,7 @@ function nextDay() {
           const processedText = fillTemplate(getRandom(action.text));
           const changeForActor = getProbabilisticChange(scoreForActor);
           const changeForTarget = getProbabilisticChange(scoreForTarget);
-
+          
           const bonus = (isLovers || isMarried) ? 5 : 0;
           const coldPenalty = isColdwar ? -5 : 0;
 
@@ -1024,6 +1019,8 @@ function nextDay() {
   const logsWithDay = dailyLogs.map(log => ({ ...log, day: day }));
   logs = [...logsWithDay, ...logs];
   renderLogs(dailyLogs);
+  day++;
+  
   renderStatusTable();
   renderLocations();
   updateUI();
@@ -1882,5 +1879,6 @@ function saveRelationshipsToTxt() {
   document.body.removeChild(a);
 
 }
+
 
 
