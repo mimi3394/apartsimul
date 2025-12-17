@@ -291,14 +291,16 @@ export function nextDay() {
   // ★★★ [1. 스토리 모드: 1일차 특수 로직 수정] ★★★
   if (gameState.day === 1) {
       // 1. 참석자 결정 (성격에 따라)
-      const attendees = gameState.characters.filter(c => willAttendEvent(c));
-      
-      // 로그 출력
+      const attendeeNames = attendees.map(c => c.name).join(', ');
       dailyLogs.push({ text: "✨ 신축 아파트 입주 시작! 설레는 첫 만남의 날입니다.", type: 'event' });
-      if (attendees.length < gameState.characters.length) {
-          dailyLogs.push({ text: `📢 입주민 ${attendees.length}명이 모여 떡을 돌리며 인사를 나눴습니다. (몇몇은 나오지 않았습니다)`, type: 'social' });
-      } else {
-          dailyLogs.push({ text: "📢 입주민 전원이 모여 떡을 돌리며 훈훈한 첫인사를 나눴습니다.", type: 'social' });
+      if (attendees.length > 0) {
+          dailyLogs.push({ 
+              text: `📢 입주민 ${attendees.length}명이 모여 떡을 돌리며 인사를 나눴습니다.\n(참석자: ${attendeeNames})`, 
+              type: 'social' 
+          });
+      } 
+      else {
+          dailyLogs.push({ text: "📢 입주민들이 모두 짐 정리하느라 바빠 아무도 나오지 않았습니다...", type: 'social' });
       }
       
       // 2. 참석자들끼리만 관계 형성
@@ -1039,4 +1041,5 @@ export function nextDay() {
     requestAnimationFrame(() => drawRelationshipMap());
   }
 }
+
 
