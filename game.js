@@ -1,4 +1,4 @@
-const SAJU_DATA = {const SAJU_DATA = {
+const SAJU_DATA = {
   // 양(Yang) 그룹
   yang: {
     stems: ["甲", "丙", "戊", "庚", "壬"],
@@ -2403,6 +2403,7 @@ function saveRelationshipsToTxt() {
   document.body.removeChild(a);
 
 }
+
 
 
 
