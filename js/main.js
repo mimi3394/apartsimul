@@ -3,10 +3,11 @@ import {
     renderCharacterList, renderLocations, updateUI, 
     initSajuSelect, initRoomSelect, renderStatusTable, clearLogs, 
     toggleTheme, openRelationshipMap, closeRelationshipMap,
-    drawRelationshipMap, showAffectionModal, closeModal, renderLogs // <--- renderLogs 추가됨
+    drawRelationshipMap, showAffectionModal, closeModal, renderLogs
 } from './ui.js';
 import { nextDay } from './event.js';
-import { getRelationshipLabel } from './logic.js';
+import { getRelationshipLabel, willAttendEvent, calculateFirstImpression, calculateChemistry } from './logic.js';
+import { GAPJA_PERSONALITIES } from './data.js';
 
 // ---- [캐릭터 관리 기능] ----
 
@@ -32,6 +33,7 @@ function addCharacter() {
 
   const ilju = ganInput.value + jiInput.value;
   const gender = genderInput.value;
+  const trait = GAPJA_PERSONALITIES[ilju] || { desc: "알 수 없음" };
 
   const newChar = {
     id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
@@ -50,25 +52,59 @@ function addCharacter() {
 
   // ★★★ [중간 입주 이벤트] 게임이 이미 진행 중일 때(2일차 이상) ★★★
   if (gameState.day > 1) {
+      const attendees = gameState.characters.filter(c => {
+          if (c.id === newChar.id) return false; // 본인 제외
+          return willAttendEvent(c); // 성격에 따라 참석 여부 결정
+      });
+      
+      let logText = `🚚 [입주] ${newChar.room}호에 ${newChar.name}(${ilju})님이 이사왔습니다! "${trait.desc}"`;
+      
+      if (attendees.length > 0) {
+          const attendeeNames = attendees.map(c => c.name).join(', ');
+          // 너무 길면 잘라서 보여주기
+          const shortNames = attendees.length > 3 ? `${attendees[0].name} 등 ${attendees.length}명` : attendeeNames;
+          logText += `\n📢 ${shortNames}이(가) 나와서 이사 떡을 나눠 먹었다.`;
+      } else {
+          logText += `\n🍃 하지만 아무도 나와보지 않아 조금 썰렁했다...`;
+      }
+      
       const moveInLog = { 
           text: `🚚 [입주] ${newChar.room}호에 새로운 이웃 ${newChar.name}님이 이사왔습니다! 모두가 반갑게 인사해줍니다.`, 
           type: 'event',
           day: gameState.day 
       };
-      
-      // 로그 저장 및 화면 표시
-      gameState.logs.unshift(moveInLog); // 로그 배열 맨 앞에 추가
-      renderLogs([moveInLog]); // 화면에 즉시 띄우기
+      gameState.logs.unshift(moveInLog);
+      renderLogs([moveInLog]);
 
-      // 기존 주민들과 자동 인사 (호감도 +10 보너스)
-      gameState.characters.forEach(c => {
-          if (c.id !== newChar.id) {
-              if (!c.relationships) c.relationships = {};
-              if (!newChar.relationships) newChar.relationships = {};
-              
-              c.relationships[newChar.id] = 10;
-              newChar.relationships[c.id] = 10;
-          }
+      gameState.characters.forEach(existing => {
+          if (existing.id === newChar.id) return;
+
+          // (1) 첫인상 점수 (성격 + 랜덤) - 딱 봤을 때 느낌
+          let scoreForNewcomer = calculateFirstImpression(existing, newChar);
+          let scoreForExisting = calculateFirstImpression(newChar, existing);
+
+          // (2) 참석자와의 대화 결과 (궁합 반영)
+          if (attendees.includes(existing)) {
+              // 둘의 사주 궁합 계산 (-50 ~ +100점 사이)
+              const chem = calculateChemistry(existing, newChar);
+
+              if (chem >= 20) {
+                  scoreForNewcomer += 10;
+                  scoreForExisting += 10;
+              } else if (chem >= -10) {
+                  scoreForNewcomer += 5;
+                  scoreForExisting += 5;
+              } else {
+                  scoreForNewcomer -= 15;
+                  scoreForExisting -= 15;
+              }
+          } 
+
+          if (!existing.relationships) existing.relationships = {};
+          if (!newChar.relationships) newChar.relationships = {};
+          
+          existing.relationships[newChar.id] = scoreForNewcomer;
+          newChar.relationships[existing.id] = scoreForExisting;
       });
   }
 
@@ -345,5 +381,6 @@ window.closeModal = closeModal;
 window.openRelationshipMap = openRelationshipMap;
 window.closeRelationshipMap = closeRelationshipMap;
 window.clearLogs = clearLogs;
+
 
 
