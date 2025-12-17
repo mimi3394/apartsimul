@@ -1,4 +1,4 @@
-const SAJU_DATA = {
+const SAJU_DATA = {const SAJU_DATA = {
   // 양(Yang) 그룹
   yang: {
     stems: ["甲", "丙", "戊", "庚", "壬"],
@@ -483,19 +483,24 @@ function getCurrentLoverId(char) {
 function breakUpPair(charA, charB, reasonText, dailyLogs) {
   if (!charA || !charB) return;
 
+  // 1. 관계 상태 초기화
   setSpecialStatus(charA.id, charB.id, null);
   setSpecialStatus(charB.id, charA.id, null);
-
   clearColdwarPair(charA, charB);
 
-  updateRelationship(charA.id, charB.id, -40);
-  updateRelationship(charB.id, charA.id, -40);
+  let penalty = -60;
+  if (reasonText === '환승이별' || reasonText === '갈아타기') {
+      penalty = -120;
+  }
 
-  if (reasonText === '절교') {
+  updateRelationship(charA.id, charB.id, penalty);
+  updateRelationship(charB.id, charA.id, penalty);
+
+  if (reasonText === '절교' || reasonText === '환승이별') {
     if (!charA.cutMeta) charA.cutMeta = {};
     if (!charB.cutMeta) charB.cutMeta = {};
-    charA.cutMeta[charB.id] = { sinceDay: day, cooldown: 7 };
-    charB.cutMeta[charA.id] = { sinceDay: day, cooldown: 7 };
+    charA.cutMeta[charB.id] = { sinceDay: day, cooldown: 14 }; // 2주간 말 안 섞음
+    charB.cutMeta[charA.id] = { sinceDay: day, cooldown: 14 };
 
     setSpecialStatus(charA.id, charB.id, 'cut');
     setSpecialStatus(charB.id, charA.id, 'cut');
@@ -503,9 +508,12 @@ function breakUpPair(charA, charB, reasonText, dailyLogs) {
 
   charA.currentAction = reasonText;
   charB.currentAction = reasonText;
+  
+  setMood(charA, 'sad');
+  setMood(charB, 'sad');
 
   dailyLogs.push({
-    text: `[${reasonText}] ${charA.name}${getJosa(charA.name,'와/과')} ${charB.name}${getJosa(charB.name,'은/는')} 관계를 정리했다.`,
+    text: `[${reasonText}] ${charA.name}${getJosa(charA.name,'와/과')} ${charB.name}${getJosa(charB.name,'은/는')} 남남이 되었다. 관계가 급격히 냉각되었다. ❄️`,
     type: 'breakup'
   });
 }
@@ -547,21 +555,59 @@ function nextDay() {
   processNursingEvents(dailyLogs);
 
   // 3. 장소 정하기 (간호 중인 사람 제외)
+  const movedSet = new Set(); // 이번 턴에 이미 장소를 정한 사람 기록
+
   characters.forEach(char => {
-    if (char.isNursing || char.hasNurse) {
+    if (movedSet.has(char.id)) return;
+
+    // 2. 간호 중이거나 아픈 사람은 아파트 고정
+    if (char.isNursing || char.hasNurse || char.mood === 'sick') {
       char.currentLocation = 'apt';
+      movedSet.add(char.id);
       return;
     }
-    if (char.mood === 'sick') {
-      char.currentLocation = 'apt';
-      return;
+
+    // 3. 파트너가 있는지 확인 (연인/배우자)
+    const partnerId = getCurrentLoverId(char);
+    let movedWithPartner = false;
+
+    if (partnerId) {
+        const partner = characters.find(c => c.id === partnerId);
+        
+        // 파트너가 존재하고, 파트너도 아직 장소를 안 정했고, 아프지 않다면
+        if (partner && !movedSet.has(partner.id) && partner.mood !== 'sick' && !partner.isNursing && !partner.hasNurse) {
+            
+            // 70% 확률로 같이 이동 (이 수치를 조절하세요! 0.7 = 70%)
+            if (Math.random() < 0.7) {
+                // 어디 갈지 정하기 (50% 외출, 50% 집)
+                const goOut = Math.random() < 0.5;
+                let loc = 'apt';
+                
+                if (goOut) {
+                    const places = PLACES.filter(p => p.type === 'out');
+                    loc = getRandom(places).id;
+                }
+
+                // 둘 다 같은 곳으로 이동시킴
+                char.currentLocation = loc;
+                partner.currentLocation = loc;
+
+                // 둘 다 이동 완료 처리
+                movedSet.add(char.id);
+                movedSet.add(partner.id);
+                movedWithPartner = true;
+            }
+        }
     }
-    const chanceToGoOut = 0.5;
-    if (Math.random() < chanceToGoOut) {
-      const places = PLACES.filter(p => p.type === 'out');
-      char.currentLocation = getRandom(places).id;
-    } else {
-      char.currentLocation = 'apt';
+    if (!movedWithPartner) {
+        const chanceToGoOut = 0.5;
+        if (Math.random() < chanceToGoOut) {
+          const places = PLACES.filter(p => p.type === 'out');
+          char.currentLocation = getRandom(places).id;
+        } else {
+          char.currentLocation = 'apt';
+        }
+        movedSet.add(char.id);
     }
   });
 
@@ -679,6 +725,20 @@ function nextDay() {
         if (minRel >= 50 && Math.random() < 0.2) isTravel = true;
       }
 
+      if (isTravel) {
+         // 그룹 멤버 중에 "파트너가 이 그룹 안에 없는" 사람이 있는지 확인
+         const hasExternalPartner = group.some(m => {
+             const pid = getCurrentLoverId(m);
+             // 파트너가 있는데, 그 파트너가 현재 여행 그룹에 없으면 '바람'임
+             return pid && !group.some(g => g.id === pid);
+         });
+         
+         if (hasExternalPartner) {
+             // 90% 확률로 여행 취소 (눈치보여서 못 감)
+             if (Math.random() < 0.90) isTravel = false;
+         }
+      }  
+
       if (group.length > 1) group.forEach(m => m.interactionGroup = groupId);
 
       if (group.length === 1) {
@@ -723,7 +783,7 @@ function nextDay() {
         const isMarried = (specialBetween === 'married');
         const isColdwar = (specialBetween === 'coldwar');
 
-        if (!isTravel && !isMarried && isLovers && currentActorScore >= 200 && currentTargetScore >= 200 && Math.random() < 0.08) {
+        if (!isTravel && !isMarried && isLovers && currentActorScore >= 200 && currentTargetScore >= 200 && Math.random() < 0.20) {
           setSpecialStatus(actor.id, target.id, 'married');
           setSpecialStatus(target.id, actor.id, 'married');
           clearColdwarPair(actor, target);
@@ -736,12 +796,77 @@ function nextDay() {
           continue;
         }
 
+         //바람(Cheating) & 스캔들 시스템 💋💔
+        const actorPartnerId = getCurrentLoverId(actor);
+        const hasPartner = !!actorPartnerId;
+        const isCheatingTarget = hasPartner && actorPartnerId !== target.id; 
+
+        // 유혹 발생 조건 (상대방에게 호감이 50점 이상)
+        if (isCheatingTarget && scoreForActor >= 50) {
+            // 바람필 확률: 기본 5% + 상대가 좋을수록 증가 + 도파민 관계면 2배
+            let cheatChance = 0.05 + (scoreForActor / 1000); 
+            
+            const gA = actor.mbti[0], jA = actor.mbti[1], gB = target.mbti[0], jB = target.mbti[1];
+            if ((CHUNG_PAIRS[gA]===gB && CHUNG_PAIRS[jA]===jB) || WONJIN_PAIRS[jA]===jB) {
+                cheatChance *= 2; 
+            }
+
+            if (Math.random() < cheatChance) {
+                // 🔥 바람 발생!
+                const isCaught = Math.random() < 0.3; // 30% 확률로 걸림
+
+                if (isCaught) {
+                    const partner = characters.find(c => c.id === actorPartnerId);
+                    if (partner) {
+                        breakUpPair(actor, partner, '외도적발', dailyLogs);
+                        updateRelationship(partner.id, actor.id, -100);
+                        setMood(partner, 'sick');
+                    }
+
+                    updateRelationship(actor.id, target.id, -50);
+                    updateRelationship(target.id, actor.id, -50);
+                    
+                    // 아파트 전체 소문 (모든 입주민 호감도 하락)
+                    characters.forEach(c => {
+                        if (c.id !== actor.id && c.id !== target.id) {
+                            updateRelationship(c.id, actor.id, -30);
+                            updateRelationship(c.id, target.id, -30);
+                        }
+                    });
+
+                    actor.currentAction = "불륜 들킴";
+                    target.currentAction = "불륜 들킴";
+                    setMood(actor, 'sad');
+                    
+                    dailyLogs.push({
+                        text: `[🚨대형 스캔들] ${actor.name}${getJosa(actor.name,'이/가')} ${target.name}${getJosa(target.name,'와/과')} 몰래 밀회를 즐기다 딱 걸렸다! 입주민 전체가 충격에 빠졌다.`,
+                        type: 'breakup'
+                    });
+
+                } else {
+                    // [성공] 비밀 데이트
+                    updateRelationship(actor.id, target.id, 30);
+                    updateRelationship(target.id, actor.id, 30);
+                    
+                    actor.currentAction = "비밀 데이트";
+                    target.currentAction = "비밀 데이트";
+                    setMood(actor, 'happy');
+
+                    dailyLogs.push({
+                        text: `[🤫비밀] ${actor.name}${getJosa(actor.name,'은/는')} 연인 몰래 ${target.name}${getJosa(target.name,'와/과')} 아슬아슬한 밀회를 즐겼다. (들키지 않음)`,
+                        type: 'secret'
+                    });
+                }
+                continue;
+            }
+        }
+
         // [이벤트 확률 계산]
         const ganA = actor.mbti[0]; const jiA = actor.mbti[1];
         const ganB = target.mbti[0]; const jiB = target.mbti[1];
         const isDoubleChung = (CHUNG_PAIRS[ganA] === ganB && CHUNG_PAIRS[jiA] === jiB);
         const isWonjin = (WONJIN_PAIRS[jiA] === jiB);
-
+          
         let eventProb = 0.25; // 기본 확률 (25%)
         if (isDoubleChung || isWonjin) eventProb = 0.65; // 도파민 관계 (65%)
         if (!isLovers && !isMarried) {
@@ -750,15 +875,18 @@ function nextDay() {
         }
 
         // 3. 이벤트 발생 로직
-        if (Math.random() < eventProb && !isTravel) {
-          let evt = getRandom(EVENTS);
+        if (Math.random() < eventProb || isTravel) { 
+            let evt = null;
+            if (isTravel) {
+                evt = { type: 'travel', name: '여행' }; 
+            } else {
+                evt = getRandom(EVENTS);
+            }
           
           if (!isLovers && !isMarried && !isColdwar) {
              if (currentActorScore >= 90) {
-                 // 90점 이상이면 80% 확률로 '고백' 선택 (다른 이벤트 무시)
-                 if (Math.random() < 0.80) evt = EVENTS.find(e => e.type === 'confess') || evt;
+                 if (Math.random() < 0.70) evt = EVENTS.find(e => e.type === 'confess') || evt;
              } else if (currentActorScore >= 70) {
-                 // 70점 이상이면 40% 확률로 '고백' 선택
                  if (Math.random() < 0.40) evt = EVENTS.find(e => e.type === 'confess') || evt;
              }
           }
@@ -774,6 +902,69 @@ function nextDay() {
           if (evt.type === 'date' && !(isLovers || currentActorScore >= 60)) evt = getRandom(EVENTS);
           if (evt.type === 'secret' && currentActorScore < 20 && !isDoubleChung && !isWonjin) {
              evt = getRandom(EVENTS);
+          }
+
+          const actorPid = getCurrentLoverId(actor);
+          const targetPid = getCurrentLoverId(target);
+          
+          const isBadDate = (evt.type === 'date') && (
+              (actorPid && actorPid !== target.id) || (targetPid && targetPid !== actor.id)
+          );
+
+          if (isBadDate && !isTravel) {
+              // 85% 확률로 데이트 취소하고 그냥 건전한 '대화'나 '동아리'로 변경
+              if (Math.random() < 0.85) evt = getRandom(EVENTS.filter(e => e.type !== 'date' && e.type !== 'confess'));
+          }
+
+          // ----------------------------------------------------------------
+          // [신규] 2. 질투 & 급습 이벤트 (Caught in the Act) 🚨
+          // ----------------------------------------------------------------
+          const isCheatingEvent = (evt.type === 'date' || isTravel) && (
+              (actorPid && actorPid !== target.id) || (targetPid && targetPid !== actor.id)
+          );
+
+          if (isCheatingEvent) {
+               // 30% 확률로 걸림
+               if (Math.random() < 0.30) {
+                   // 걸린 사람 찾기
+                   let cheater = null;
+                   let angryPartner = null;
+                   
+                   if (actorPid && actorPid !== target.id) {
+                       cheater = actor; angryPartner = characters.find(c => c.id === actorPid);
+                   } else if (targetPid && targetPid !== actor.id) {
+                       cheater = target; angryPartner = characters.find(c => c.id === targetPid);
+                   }
+
+                   if (angryPartner) {
+                       // 상황 종료: 데이트/여행 파토나고 싸움 발생
+                       isTravel = false; 
+                       
+                       // 1. 점수 페널티
+                       updateRelationship(angryPartner.id, cheater.id, -40);
+                       updateRelationship(cheater.id, angryPartner.id, -20);
+                       
+                       const paramour = (cheater.id === actor.id) ? target : actor;
+                       updateRelationship(angryPartner.id, paramour.id, -50); 
+                       updateRelationship(paramour.id, angryPartner.id, -30);
+
+                       // 2. 냉전 상태 돌입
+                       markColdwarPair(angryPartner, cheater);
+                       
+                       // 3. 로그 출력
+                       cheater.currentAction = "현장 검거";
+                       paramour.currentAction = "도망침";
+                       setMood(cheater, 'sad');
+                       setMood(angryPartner, 'sick'); 
+
+                       dailyLogs.push({
+                           text: `[💔질투] ${cheater.name}${getJosa(cheater.name,'이/가')} ${paramour.name}${getJosa(paramour.name,'와/과')} ${evt.name}를 즐기던 현장에 연인 ${angryPartner.name}${getJosa(angryPartner.name,'이/가')} 들이닥쳤다! 현장은 아수라장이 되었다.`,
+                           type: 'breakup'
+                       });
+                       
+                       continue; // 원래 하려던 이벤트 취소하고 턴 종료
+                   }
+               }
           }
 
           let logText = "";
@@ -818,55 +1009,114 @@ function nextDay() {
              }
           }
           else if (evt.type === 'confess') {
+             // 1. 이미 부부인 경우 (다시 사랑 확인)
              if (isMarried) {
                 updateRelationship(actor.id, target.id, 5); updateRelationship(target.id, actor.id, 5); clearColdwarPair(actor, target);
                 logText = `[사랑] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 사랑을 다시 확인했다. 💍`;
                 actor.currentAction = evt.name; target.currentAction = `(대상) ${evt.name}`;
                 setMood(actor, 'happy'); setMood(target, 'happy');
                 dailyLogs.push({ text: logText, type: 'love' });
-             } else if (isLovers) {
+             } 
+             // 2. 이미 연인인 경우 (다시 사랑 맹세)
+             else if (isLovers) {
                 updateRelationship(actor.id, target.id, 5); updateRelationship(target.id, actor.id, 5); clearColdwarPair(actor, target);
                 logText = `[사랑] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 다시 사랑을 맹세했다.`;
                 actor.currentAction = evt.name; target.currentAction = `(대상) ${evt.name}`;
                 setMood(actor, 'happy'); setMood(target, 'happy');
                 dailyLogs.push({ text: logText, type: 'love' });
-             } else if (currentActorScore > 50) {
-                 // 성공 확률: 상대방(Target)이 나(Actor)를 얼마나 좋아하는지 + 궁합 보너스
-                 const chemBonus = (calculateChemistry(actor, target) - 3) * 0.05;
-                 // 200점 만점이므로, 호감도 100점이면 50% + 기본 30% = 80% 확률
-                 const successChance = 0.30 + (currentTargetScore / 200) + chemBonus;
-                 
-                 if (Math.random() < successChance) {
-                     // 환승 이별 처리
-                     const oldLoverId = getCurrentLoverId(actor);
-                     if (oldLoverId && oldLoverId !== target.id) {
-                       const oldLover = characters.find(c => c.id === oldLoverId);
-                       if (oldLover) breakUpPair(actor, oldLover, '갈아타기', dailyLogs);
+             } 
+             // 3. 썸 타는 사이 (고백 시도)
+             else if (currentActorScore > 50) {
+                 // -----------------------------------------------------------
+                 // [환승 이별 판독기] 상대방(Target)에게 이미 애인이 있는가?
+                 // -----------------------------------------------------------
+                 const targetOldLoverId = getCurrentLoverId(target);
+                 let canSwitch = true; // 기본적으로 환승 가능하다고 가정
+                 let rejectReason = "";
+
+                 if (targetOldLoverId) {
+                     const oldLover = characters.find(c => c.id === targetOldLoverId);
+                     const scoreWithOld = target.relationships[targetOldLoverId] || 0; // 구 애인 점수 (최대 200)
+                     const scoreWithNew = currentTargetScore; // 새 사람 점수 (최대 100)
+
+                     // [로직] 환승 난이도 계산
+                     // 설렘 보정(+50)을 받아도 구 애인을 못 이기면 환승 불가
+                     // 예: 구 애인 160점 vs 새 사람 90점 + 50점(140) => 환승 실패 (철벽)
+                     // 예: 구 애인 110점 vs 새 사람 90점 + 50점(140) => 환승 가능성 있음
+                     
+                     if (scoreWithOld >= 150) {
+                         canSwitch = false; // 너무 사랑해서 철벽
+                         rejectReason = "연인을 너무 사랑해서";
+                     } else if (scoreWithNew + 50 < scoreWithOld) {
+                         canSwitch = false; // 구관이 명관
+                         rejectReason = "지금 연인이 더 좋아서";
+                     } else {
+                         // 점수 조건은 통과했지만, 50% 확률로 의리를 지킬 수도 있음
+                         if (Math.random() < 0.5) {
+                             canSwitch = false;
+                             rejectReason = "연인에 대한 의리 때문에";
+                         }
                      }
-                     const targetOldLoverId = getCurrentLoverId(target);
-                     if (targetOldLoverId && targetOldLoverId !== actor.id) {
-                       const old = characters.find(c => c.id === targetOldLoverId);
-                       if (old) breakUpPair(target, old, '갈아타기', dailyLogs);
+                 }
+
+                 // [고백 성공 여부 결정]
+                 // 환승 조건(canSwitch)을 통과해야만 성공 확률 계산을 시작함
+                 let success = false;
+                 
+                 if (canSwitch) {
+                     const chemBonus = (calculateChemistry(actor, target) - 3) * 0.05;
+                     // 기본 성공률 계산
+                     const successChance = 0.30 + (currentTargetScore / 200) + chemBonus;
+                     if (Math.random() < successChance) success = true;
+                 }
+
+                 if (success) {
+                     // 1. (Actor가 바람피는 경우) Actor의 기존 연인 정리
+                     const actorOldLoverId = getCurrentLoverId(actor);
+                     if (actorOldLoverId && actorOldLoverId !== target.id) {
+                       const old = characters.find(c => c.id === actorOldLoverId);
+                       if (old) breakUpPair(actor, old, '환승이별', dailyLogs);
                      }
                      
-                     // 커플 성사!
+                     // 2. (Target이 환승하는 경우) Target의 기존 연인 정리
+                     if (targetOldLoverId && targetOldLoverId !== actor.id) {
+                       const old = characters.find(c => c.id === targetOldLoverId);
+                       if (old) breakUpPair(target, old, '환승이별', dailyLogs);
+                     }
+                     
+                     // 3. 커플 성사 처리
                      setSpecialStatus(actor.id, target.id, 'lover');
                      setSpecialStatus(target.id, actor.id, 'lover');
                      clearColdwarPair(actor, target);
-                     updateRelationship(actor.id, target.id, 15);
-                     updateRelationship(target.id, actor.id, 15);
+                     
+                     // 사귀기 시작하면 점수 대폭 상승
+                     updateRelationship(actor.id, target.id, 20);
+                     updateRelationship(target.id, actor.id, 20);
                      setMood(actor, 'happy'); setMood(target, 'happy');
-                     logText = `[고백 성공] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 고백했고, 연인이 되었다! 💖`;
+
+                     // 환승인지 첫 연애인지에 따라 로그 다르게
+                     if (targetOldLoverId) {
+                        logText = `[환승 연애] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}의 마음을 뺏는 데 성공했다! 새로운 커플 탄생 💘`;
+                     } else {
+                        logText = `[고백 성공] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 고백했고, 연인이 되었다! 💖`;
+                     }
                      actor.currentAction = evt.name; target.currentAction = `(대상) ${evt.name}`;
                      dailyLogs.push({ text: logText, type: 'love' });
+
                  } else {
                      // 차임
                      updateRelationship(actor.id, target.id, -5); 
-                     // 차이면 상대방은 나를 좀 불편해함 (-2)
                      updateRelationship(target.id, actor.id, -2);
                      if (Math.random() < 0.35) markColdwarPair(actor, target);
+                     
                      setMood(actor, 'sad');
-                     logText = `[고백 실패] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 차였다... (상대 호감도: ${currentTargetScore}점)`;
+                     
+                     if (targetOldLoverId && !canSwitch) {
+                         logText = `[고백 실패] ${actor.name}${getJosa(actor.name, '은/는')} 고백했지만, ${target.name}${getJosa(target.name, '은/는')} ${rejectReason} 거절했다.`;
+                     } else {
+                         logText = `[고백 실패] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 차였다... (상대 호감도 부족)`;
+                     }
+                     
                      actor.currentAction = evt.name; target.currentAction = `(대상) ${evt.name}`;
                      dailyLogs.push({ text: logText, type: 'event' });
                  }
@@ -876,8 +1126,126 @@ function nextDay() {
                  dailyLogs.push({ text: logText, type: 'event' });
              }
           }
+          
+          else if (evt.type === 'confess') {
+             // 1. 이미 부부인 경우 (다시 사랑 확인)
+             if (isMarried) {
+                updateRelationship(actor.id, target.id, 5); updateRelationship(target.id, actor.id, 5); clearColdwarPair(actor, target);
+                logText = `[사랑] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 사랑을 다시 확인했다. 💍`;
+                actor.currentAction = evt.name; target.currentAction = `(대상) ${evt.name}`;
+                setMood(actor, 'happy'); setMood(target, 'happy');
+                dailyLogs.push({ text: logText, type: 'love' });
+             } 
+             // 2. 이미 연인인 경우 (다시 사랑 맹세)
+             else if (isLovers) {
+                updateRelationship(actor.id, target.id, 5); updateRelationship(target.id, actor.id, 5); clearColdwarPair(actor, target);
+                logText = `[사랑] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 다시 사랑을 맹세했다.`;
+                actor.currentAction = evt.name; target.currentAction = `(대상) ${evt.name}`;
+                setMood(actor, 'happy'); setMood(target, 'happy');
+                dailyLogs.push({ text: logText, type: 'love' });
+             } 
+             // 3. 썸 타는 사이 (고백 시도)
+             else if (currentActorScore > 50) {
+                 const targetOldLoverId = getCurrentLoverId(target);
+                 let canSwitch = true; // 기본적으로 환승 가능하다고 가정
+                 let rejectReason = "";
+
+                 if (targetOldLoverId) {
+                     const oldLover = characters.find(c => c.id === targetOldLoverId);
+                     const scoreWithOld = target.relationships[targetOldLoverId] || 0; // 구 애인 점수 (최대 200)
+                     const scoreWithNew = currentTargetScore; // 새 사람 점수 (최대 100)
+
+                     // [로직] 환승 난이도 계산
+                     // 설렘 보정(+50)을 받아도 구 애인을 못 이기면 환승 불가
+                     // 예: 구 애인 160점 vs 새 사람 90점 + 50점(140) => 환승 실패 (철벽)
+                     // 예: 구 애인 110점 vs 새 사람 90점 + 50점(140) => 환승 가능성 있음
+                     
+                     if (scoreWithOld >= 150) {
+                         canSwitch = false; // 너무 사랑해서 철벽
+                         rejectReason = "연인을 너무 사랑해서";
+                     } else if (scoreWithNew + 50 < scoreWithOld) {
+                         canSwitch = false; // 구관이 명관
+                         rejectReason = "지금 연인이 더 좋아서";
+                     } else {
+                         // 점수 조건은 통과했지만, 50% 확률로 의리를 지킬 수도 있음
+                         if (Math.random() < 0.5) {
+                             canSwitch = false;
+                             rejectReason = "연인에 대한 의리 때문에";
+                         }
+                     }
+                 }
+
+
+                 let success = false;
+                 
+                 if (canSwitch) {
+                     const chemBonus = (calculateChemistry(actor, target) - 3) * 0.05;
+                     const successChance = 0.30 + (currentTargetScore / 200) + chemBonus;
+                     if (Math.random() < successChance) success = true;
+                 }
+
+                 if (success) {
+                     // 1. (Actor가 바람피는 경우) Actor의 기존 연인 정리
+                     const actorOldLoverId = getCurrentLoverId(actor);
+                     if (actorOldLoverId && actorOldLoverId !== target.id) {
+                       const old = characters.find(c => c.id === actorOldLoverId);
+                       if (old) breakUpPair(actor, old, '환승이별', dailyLogs);
+                     }
+                     
+                     // 2. (Target이 환승하는 경우) Target의 기존 연인 정리
+                     if (targetOldLoverId && targetOldLoverId !== actor.id) {
+                       const old = characters.find(c => c.id === targetOldLoverId);
+                       if (old) breakUpPair(target, old, '환승이별', dailyLogs);
+                     }
+                     
+                     // 3. 커플 성사 처리
+                     setSpecialStatus(actor.id, target.id, 'lover');
+                     setSpecialStatus(target.id, actor.id, 'lover');
+                     clearColdwarPair(actor, target);
+                     
+                     // 사귀기 시작하면 점수 대폭 상승
+                     updateRelationship(actor.id, target.id, 20);
+                     updateRelationship(target.id, actor.id, 20);
+                     setMood(actor, 'happy'); setMood(target, 'happy');
+
+                     // 환승인지 첫 연애인지에 따라 로그 다르게
+                     if (targetOldLoverId) {
+                        logText = `[환승 연애] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}의 마음을 뺏는 데 성공했다! 새로운 커플 탄생 💘`;
+                     } else {
+                        logText = `[고백 성공] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 고백했고, 연인이 되었다! 💖`;
+                     }
+                     actor.currentAction = evt.name; target.currentAction = `(대상) ${evt.name}`;
+                     dailyLogs.push({ text: logText, type: 'love' });
+
+                 } else {
+                     // 차임
+                     updateRelationship(actor.id, target.id, -30); 
+                     updateRelationship(target.id, actor.id, -20);
+                     
+                     if (Math.random() < 0.5) markColdwarPair(actor, target);
+                     
+                     // 4. 기분 변화
+                     setMood(actor, 'sad');
+                     setMood(target, 'normal');
+
+                     // 5. 로그 출력
+                     if (targetOldLoverId && !canSwitch) {
+                         logText = `[고백 실패] ${actor.name}${getJosa(actor.name, '은/는')} 용기내어 고백했지만, ${target.name}${getJosa(target.name, '은/는')} ${rejectReason} 거절했다. 둘 사이에 어색한 기류가 흐른다...`;
+                     } else {
+                         logText = `[고백 실패] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 차였다... (상대 호감도: ${currentTargetScore}점) 당분간 얼굴 보기 힘들 것 같다.`;
+                     }
+                     
+                     actor.currentAction = "거절당함"; 
+                     target.currentAction = "거절함";
+                     dailyLogs.push({ text: logText, type: 'event' });
+                 }
+             } else {
+                 logText = `[고백 포기] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 고백하려다 참았다.`;
+                 actor.currentAction = evt.name; target.currentAction = `(대상) ${evt.name}`;
+                 dailyLogs.push({ text: logText, type: 'event' });
+             }
+          }
           else if (evt.type === 'breakup') {
-              // ... (기존 이별 로직 유지) ...
               if (isMarried) {
                 updateRelationship(actor.id, target.id, -2); updateRelationship(target.id, actor.id, -2);
                 logText = `[위기] ${actor.name}${getJosa(actor.name, '와/과')} ${target.name}${getJosa(target.name, '은/는')} 다퉜지만 결혼 관계는 유지했다. 💍`;
@@ -1232,7 +1600,7 @@ function findEmptyRoom() {
 
   const availableRooms = Object.keys(counts).filter(room => counts[room] < 4);
 
-  if (availableRooms.length === 0) return null; // 방이 꽉 참
+  if (availableRooms.length === 0) return null;
 
   const randomIndex = Math.floor(Math.random() * availableRooms.length);
   return availableRooms[randomIndex];
@@ -1311,7 +1679,6 @@ function renderCharacterList() {
     div.className = "bg-white dark:bg-slate-700 p-4 rounded-xl border border-slate-200 dark:border-slate-600 shadow-sm relative group hover:shadow-md transition-shadow cursor-pointer";
     const moodMeta = getMoodMeta(char.mood || 'normal');
     
-    // [수정] 성별에 따른 프로필 배경색 설정
     let genderClass = "bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-400"; // 기본(알수없음)
     
     if (char.gender === 'male') {
@@ -1357,7 +1724,6 @@ function renderCharacterList() {
   const total = document.getElementById('total-count');
   if (total) total.textContent = characters.length;
 }
-
 function renderLocations() {
   const aptGrid = document.getElementById('apartment-grid');
   if (!aptGrid) return;
@@ -1883,8 +2249,161 @@ function saveRelationshipsToTxt() {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+}
+function openRelationshipMap() {
+  const modal = document.getElementById('relationship-map-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  ensureCanvasFontReady().then(() => {
+    requestAnimationFrame(() => drawRelationshipMap());
+  });
+  window.addEventListener('resize', drawRelationshipMap);
+}
+
+function closeRelationshipMap() {
+  const modal = document.getElementById('relationship-map-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  window.removeEventListener('resize', drawRelationshipMap);
+}
+
+function drawRelationshipMap() {
+  const canvas = document.getElementById('relationship-canvas');
+  if (!canvas) return;
+  const { ctx, w, h } = resizeCanvasToDisplaySize(canvas);
+  ctx.clearRect(0, 0, w, h);
+  if (characters.length === 0) {
+    ctx.font = `14px ${CANVAS_FONT_FAMILY}`;
+    ctx.fillStyle = isDarkMode ? "#94a3b8" : "#64748b";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("표시할 캐릭터가 없습니다.", w / 2, h / 2);
+    return;
+  }
+  const centerX = w / 2;
+  const centerY = h / 2;
+  const radius = Math.min(centerX, centerY) * 0.78;
+  const angleStep = (2 * Math.PI) / characters.length;
+  const nodes = characters.map((char, index) => {
+    const angle = angleStep * index - Math.PI / 2;
+    return {
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
+      char: char
+    };
+  });
+  nodes.forEach(source => {
+    nodes.forEach(target => {
+      if (source === target) return;
+      const relScore = source.char.relationships[target.char.id] || 0;
+      const special = getSpecialStatusBetween(source.char, target.char);
+      if (relScore === 0 && !special) return;
+      let color = isDarkMode ? "#475569" : "#cbd5e1";
+      let widthLine = 1;
+      if (special === 'married') { color = "#ec4899"; widthLine = 3; }
+      else if (special === 'lover') { color = "#db2777"; widthLine = 2; }
+      else if (special === 'coldwar') { color = "#f97316"; widthLine = 2; }
+      else if (relScore >= 60) color = "#2563eb";
+      else if (relScore >= 20) color = "#16a34a";
+      else if (relScore <= -60) color = "#dc2626";
+      else if (relScore <= -20) color = "#ea580c";
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = widthLine;
+      ctx.moveTo(source.x, source.y);
+      ctx.quadraticCurveTo(centerX, centerY, target.x, target.y);
+      ctx.stroke();
+    });
+  });
+  nodes.forEach(node => {
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, 20, 0, 2 * Math.PI);
+    ctx.fillStyle = isDarkMode ? "#1e293b" : "#ffffff";
+    ctx.fill();
+    ctx.strokeStyle = isDarkMode ? "#475569" : "#cbd5e1";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.font = `bold 12px ${CANVAS_FONT_FAMILY}`;
+    ctx.fillStyle = isDarkMode ? "#e2e8f0" : "#1e293b";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const name = node.char.name || "";
+    ctx.fillText(name, node.x, node.y);
+  });
+}
+
+function saveLogsToTxt() {
+  if (logs.length === 0) return alert("저장할 로그가 없습니다.");
+  let content = "=== 아파트 시뮬레이터 활동 로그 ===\n";
+  content += `저장 일시: ${new Date().toLocaleString()}\n\n`;
+  const sortedLogs = [...logs].reverse();
+  let currentDay = 0;
+  sortedLogs.forEach((log) => {
+    if (log.day && log.day !== currentDay) {
+      currentDay = log.day;
+      content += `\n[ ${currentDay}일차 ] ------------------------\n`;
+    }
+    
+    content += `- ${log.text}\n`;
+  });
+  content += `\n(총 ${sortedLogs.length}개의 기록)`;
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `simulation_logs_day${day}_${Date.now()}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function saveRelationshipsToTxt() {
+  if (characters.length === 0) return alert("캐릭터가 없습니다.");
+
+  let content = `=== 입주민 호감도 현황 (Day ${day}) ===\n`;
+  content += `작성일시: ${new Date().toLocaleString()}\n\n`;
+
+  characters.forEach(char => {
+    content += `========================================\n`;
+    const genderStr = char.gender === 'male' ? '남' : char.gender === 'female' ? '여' : 'NB';
+    content += `[${char.name}] (${char.mbti} / ${genderStr} / ${char.room}호)\n`;
+    content += `----------------------------------------\n`;
+
+    const relations = Object.entries(char.relationships || {})
+      .map(([targetId, score]) => {
+        const target = characters.find(c => c.id === targetId);
+        if (!target) return null;
+        const special = getSpecialStatusBetween(char, target);
+        let statusIcon = "";
+        if (special === 'married') statusIcon = " [💍결혼]";
+        else if (special === 'lover') statusIcon = " [💖연인]";
+        else if (special === 'coldwar') statusIcon = " [🔥냉전]";
+        else if (special === 'cut') statusIcon = " [✂️절교]";
+        const label = getRelationshipLabel(score, special); 
+        return { name: target.name, score: score, statusIcon: statusIcon, label: label };
+      })
+      .filter(r => r !== null)
+      .sort((a, b) => b.score - a.score);
+
+    if (relations.length === 0) {
+      content += "  (아직 교류한 이웃이 없습니다.)\n";
+    } else {
+      relations.forEach(r => {
+        content += `  To ${r.name} : ${r.score}점 (${r.label})${r.statusIcon}\n`;
+      });
+    }
+    content += "\n";
+  });
+
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `relationships_summary_day${day}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 
 }
+
 
 
 
