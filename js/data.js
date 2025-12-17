@@ -44,6 +44,88 @@ export const TEMPERATURE = {
   "己": "wet", "辰": "wet", "丑": "wet"
 };
 
+export const GAPJA_PERSONALITIES = {
+  // --- [갑(甲)] ---
+  "甲子": { social: 40, kindness: 0, desc: "겉은 어지나 속은 차갑고 생각이 많음" },
+  "甲寅": { social: 80, kindness: -10, desc: "고집 세고 자존심 강한 독불장군 리더" },
+  "甲辰": { social: 70, kindness: 10, desc: "명랑하고 긍정적이나 한 방을 노리는 배짱" },
+  "甲午": { social: 60, kindness: 0, desc: "언변이 화려하나 인내심 부족, 감정 기복 심함" },
+  "甲申": { social: 30, kindness: -5, desc: "늘 긴장 상태, 절제력이 강한 혁명가 기질" },
+  "甲戌": { social: 20, kindness: 0, desc: "생활력은 강하나 내면이 쓸쓸하고 고독함" },
+
+  // --- [을(乙)] ---
+  "乙丑": { social: 30, kindness: -10, desc: "겉은 유해 보이나 끈질긴 집념과 짠돌이 기질" },
+  "乙卯": { social: 60, kindness: -5, desc: "생존 본능 탁월, 친구를 경쟁자로 인식함" },
+  "乙巳": { social: 80, kindness: 10, desc: "자기표현 확실하고 매력적이나 변덕이 심함" },
+  "乙未": { social: 40, kindness: -5, desc: "계산이 빠르고 생활력 강하나 다소 까칠함" },
+  "乙酉": { social: 20, kindness: -20, desc: "날카롭고 예민하며 원칙을 중시함" },
+  "乙亥": { social: 70, kindness: 10, desc: "상상력 풍부하고 인정 많으나 현실 감각 부족" },
+
+  // --- [병(丙)] ---
+  "丙子": { social: 50, kindness: 5, desc: "밝은 척하지만 속으론 소심하고 눈치를 봄" },
+  "丙寅": { social: 90, kindness: 20, desc: "에너지 넘치고 다정다감하나 성격이 급함" },
+  "丙辰": { social: 80, kindness: 30, desc: "헌신적이고 남을 잘 챙기는 식도락가" },
+  "丙午": { social: 95, kindness: 0, desc: "뒤끝 없고 호탕하나 독단적인 불도저" },
+  "丙申": { social: 85, kindness: 10, desc: "다재다능하고 화려함을 좋아하나 속은 우울" },
+  "丙戌": { social: 40, kindness: 10, desc: "감정 기복이 심하고 욱하나 내 사람에겐 잘함" },
+
+  // --- [정(丁)] ---
+  "丁丑": { social: 30, kindness: 0, desc: "조용해 보이나 내면에 욕망과 재물욕이 강함" },
+  "丁卯": { social: 60, kindness: 20, desc: "따뜻하고 다정하나 의심이 많고 꾸미기 좋아함" },
+  "丁巳": { social: 70, kindness: -5, desc: "겉은 부드러우나 속은 칼 같음, 승부사 기질" },
+  "丁未": { social: 50, kindness: 10, desc: "성격 급하고 화끈하며 간섭받기 싫어함" },
+  "丁酉": { social: 40, kindness: -5, desc: "섬세하고 예리하며 계산이 정확함" },
+  "丁亥": { social: 80, kindness: 25, desc: "인덕이 있고 예의 바르며 직관력이 뛰어남" },
+
+  // --- [무(戊)] ---
+  "戊子": { social: 30, kindness: -5, desc: "무뚝뚝해 보이나 실속파, 다소 인색함" },
+  "戊寅": { social: 80, kindness: 0, desc: "카리스마와 리더십이 있으나 허세가 있음" },
+  "戊辰": { social: 70, kindness: 5, desc: "배포 크고 추진력 좋으나 고집이 매우 셈" },
+  "戊午": { social: 50, kindness: 0, desc: "겉은 묵직하나 속은 불같음, 마니아 기질" },
+  "戊申": { social: 60, kindness: 10, desc: "다재다능하고 오지랖이 넓으며 고독을 즐김" },
+  "戊戌": { social: 20, kindness: 0, desc: "고집과 주관 확고, 타협이 어려우나 의리 있음" },
+
+  // --- [기(己)] ---
+  "己丑": { social: 20, kindness: -5, desc: "근면 성실하나 속을 알 수 없고 앙심을 품음" },
+  "己卯": { social: 50, kindness: -10, desc: "예민하고 꼼꼼하며 완벽주의적 성향" },
+  "己巳": { social: 80, kindness: 20, desc: "의심 많으나 한번 마음 열면 다 퍼주는 스타일" },
+  "己未": { social: 10, kindness: -10, desc: "독립심 강하고 고독을 즐기며 다소 까칠함" },
+  "己酉": { social: 50, kindness: -5, desc: "예리하고 분석적이나 지적질로 구설수 조심" },
+  "己亥": { social: 90, kindness: 15, desc: "융통성 좋고 처세술 뛰어나나 귀가 얇음" },
+
+  // --- [경(庚)] ---
+  "庚子": { social: 40, kindness: -15, desc: "비판적이고 예리하며 깨끗한 것을 좋아함" },
+  "庚寅": { social: 85, kindness: 5, desc: "공사 구분 확실하고 활동 범위가 넓음" },
+  "庚辰": { social: 70, kindness: 0, desc: "의리 있고 뚝심 대단하나 융통성 부족" },
+  "庚午": { social: 75, kindness: 15, desc: "예의 바르고 단정하며 정이 많음" },
+  "庚申": { social: 50, kindness: -10, desc: "고집불통에 타협 없음, 혁명가 기질" },
+  "庚戌": { social: 30, kindness: -5, desc: "평소엔 조용하나 건드리면 폭발함, 사람 가림" },
+
+  // --- [신(辛)] ---
+  "辛丑": { social: 20, kindness: -5, desc: "차갑고 냉정해 보이나 내면에 열정이 있음" },
+  "辛卯": { social: 40, kindness: -15, desc: "예민하고 날카로우며 완벽주의 성향" },
+  "辛巳": { social: 85, kindness: 10, desc: "멋쟁이가 많고 예의 바르며 처세술 좋음" },
+  "辛未": { social: 30, kindness: -5, desc: "겉은 유순하나 속은 고집 세고 맺고 끊음 확실" },
+  "辛酉": { social: 10, kindness: -20, desc: "자존심 끝판왕, 차갑고 도도하며 냉정함" },
+  "辛亥": { social: 70, kindness: 20, desc: "표현력 좋고 감수성 풍부하나 신경 예민" },
+
+  // --- [임(壬)] ---
+  "壬子": { social: 80, kindness: 5, desc: "스케일 크고 도량 넓으나 속을 알 수 없음" },
+  "壬寅": { social: 90, kindness: 25, desc: "낙천적이고 베푸는 것 좋아하며 인기 많음" },
+  "壬辰": { social: 75, kindness: -5, desc: "지략가이며 수단 좋으나 독선적일 수 있음" },
+  "壬午": { social: 85, kindness: 15, desc: "사교적이고 다정다감하나 변덕스러움" },
+  "壬申": { social: 70, kindness: 10, desc: "박식하고 융통성 좋으며 남을 잘 이끌음" },
+  "壬戌": { social: 40, kindness: -10, desc: "자존심 강하고 직관력 뛰어나나 타인을 내려다봄" },
+
+  // --- [계(癸)] ---
+  "癸丑": { social: 30, kindness: -5, desc: "인내심 강하고 명예욕 있으나 속에 폭발력 있음" },
+  "癸卯": { social: 80, kindness: 20, desc: "다정하고 섬세하며 예술적 감각이 있음" },
+  "癸巳": { social: 95, kindness: 15, desc: "어디서나 환영받는 처세의 달인, 재물 감각 좋음" },
+  "癸未": { social: 40, kindness: -10, desc: "급하고 다혈질적이며 승부욕이 강함" },
+  "癸酉": { social: 15, kindness: -15, desc: "결벽증 있을 정도로 깔끔하고 예민함" },
+  "癸亥": { social: 50, kindness: 0, desc: "지혜롭고 예지력 있으나 고집 세고 경쟁심 강함" }
+};
+
 export const PLACES = [
   { id: 'apt', name: '아파트', type: 'home' },
   { id: 'mart', name: '마트', type: 'out' },
@@ -131,5 +213,6 @@ export const MOODS = [
   { id: 'sick', name: '아픔', dotClass: 'bg-rose-500', textClass: 'text-rose-600 dark:text-rose-300' },
   { id: 'busy', name: '바쁨', dotClass: 'bg-amber-500', textClass: 'text-amber-600 dark:text-amber-300' }
 ];
+
 
 export const CANVAS_FONT_FAMILY = `"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif`;
