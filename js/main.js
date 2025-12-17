@@ -84,21 +84,25 @@ function addCharacter() {
           let scoreForExisting = calculateFirstImpression(newChar, existing);
 
           // (2) 참석자와의 대화 결과 (궁합 반영)
+          // js/main.js (약 80번째 줄 근처)
+
+          // (2) 참석자와의 대화 결과 (궁합 반영)
           if (attendees.includes(existing)) {
-              // 둘의 사주 궁합 계산 (-50 ~ +100점 사이)
+              // 둘의 사주 궁합 계산
               const chem = calculateChemistry(existing, newChar);
 
               if (chem >= 20) {
-                  scoreForNewcomer += 10;
-                  scoreForExisting += 10;
-              } else if (chem >= -10) {
                   scoreForNewcomer += 5;
                   scoreForExisting += 5;
+              } else if (chem >= -10) {
+                  scoreForNewcomer += 2;
+                  scoreForExisting += 2;
               } else {
-                  scoreForNewcomer -= 15;
-                  scoreForExisting -= 15;
+                  scoreForNewcomer -= 3;
+                  scoreForExisting -= 3;
               }
           } 
+ 
 
           if (!existing.relationships) existing.relationships = {};
           if (!newChar.relationships) newChar.relationships = {};
