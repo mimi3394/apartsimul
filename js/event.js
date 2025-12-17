@@ -4,7 +4,7 @@ import {
   FIVE_ELEMENTS, CHUNG_PAIRS, WONJIN_PAIRS, MOODS 
 } from './data.js';
 import { getRandom, getJosa, fillTemplate } from './utils.js';
-import { calculateChemistry, calculateDirectionalScore, calculateFirstImpression } from './logic.js';
+import { calculateChemistry, calculateDirectionalScore, calculateFirstImpression, willAttendEvent } from './logic.js';
 import { renderLogs, renderStatusTable, renderLocations, updateUI, drawRelationshipMap } from './ui.js';
 
 
@@ -288,49 +288,67 @@ export function nextDay() {
   
   const dailyLogs = [];
   
-  // ★★★ [1. 스토리 모드: 1일차 특수 로직] ★★★
+  // ★★★ [1. 스토리 모드: 1일차 특수 로직 수정] ★★★
   if (gameState.day === 1) {
       // 1. 오프닝 멘트
       dailyLogs.push({ text: "✨ 신축 아파트에 입주가 시작되었습니다! 과연 이곳에서 운명의 사랑을 찾을 수 있을까요?", type: 'event' });
-      dailyLogs.push({ text: "📢 입주민들이 모두 모여 떡을 돌리며 설레는 첫인사를 나누었습니다.", type: 'social' });
       
-      // 2. 모든 캐릭터 상태 설정 (이사옴, 인사함)
+      // 2. 참석자 명단 생성 (성격에 따라 결정)
+      const attendees = gameState.characters.filter(c => willAttendEvent(c));
+      const absentees = gameState.characters.filter(c => !attendees.includes(c));
+
+      // 3. 참석자 로그 출력 (누가 왔는지 보여줌!)
+      if (attendees.length > 0) {
+          const names = attendees.map(c => c.name).join(', ');
+          dailyLogs.push({ text: `📢 떡 돌리기 행사에 ${attendees.length}명이 참석했습니다: ${names}`, type: 'social' });
+      } else {
+          dailyLogs.push({ text: "📢 아무도 떡 돌리기 행사에 나오지 않았습니다... 삭막하네요.", type: 'solo' });
+      }
+
+      // 4. 모든 캐릭터 상태 및 관계 설정
       gameState.characters.forEach(c => {
-          c.currentLocation = 'apt';     // 모두 아파트에 있음
-          c.currentAction = '짐 정리 및 인사'; // 행동 통일
-          setMood(c, 'happy');           // 기분 좋음
+          c.currentLocation = 'apt';
           
-          // 3. 서로 안면 트기 (호감도 계산 적용)
+          if (attendees.includes(c)) {
+              c.currentAction = '떡 돌리기 참석';
+              setMood(c, 'happy');
+          } else {
+              c.currentAction = '방에서 짐 정리';
+              setMood(c, 'normal');
+          }
+          
+          // 관계 형성 (참석자끼리만 대화 보너스/패널티)
           gameState.characters.forEach(target => {
               if (c.id === target.id) return;
 
-              // (1) 첫인상 점수 (성격 + 랜덤)
+              // (1) 기본 첫인상 점수 (무조건 적용)
               let score = calculateFirstImpression(c, target);
 
-              // (2) 떡 돌리기 대면 결과 (궁합 반영)
-              const chem = calculateChemistry(c, target);
-              
-              if (chem >= 20) {
-                  score += 10; // 궁합 좋으면 더 오름
-              } else if (chem >= -10) {
-                  score += 5;  // 평범하면 소폭 상승
-              } else {
-                  score -= 15; // 궁합 나쁘면 오히려 깎임 (파벌 형성!)
+              // (2) '둘 다' 참석했을 때만 대화 발생 (궁합 적용)
+              if (attendees.includes(c) && attendees.includes(target)) {
+                  const chem = calculateChemistry(c, target);
+                  if (chem >= 20) {
+                      score += 15; // 잘 맞음 (호감 상승)
+                  } else if (chem >= -10) {
+                      score += 5;  // 평범
+                  } else {
+                      score -= 20; // 안 맞음 (오히려 깎임!)
+                  }
               }
 
-              // 초기 관계 설정
+              // 초기 관계 저장
               if (!c.relationships) c.relationships = {};
               c.relationships[target.id] = score;
           });
       });
       
-      // 4. 마무리 및 화면 갱신 (일반 로직 건너뜀)
+      // 5. 마무리
       updateAllMoods();
       const logsWithDay = dailyLogs.map(log => ({ ...log, day: gameState.day }));
       gameState.logs = [...logsWithDay, ...gameState.logs];
       renderLogs(dailyLogs);
       
-      gameState.day++; // 날짜 넘기기
+      gameState.day++;
       renderStatusTable();
       renderLocations();
       updateUI();
@@ -338,7 +356,7 @@ export function nextDay() {
       if (!document.getElementById('relationship-map-modal')?.classList.contains('hidden')) {
         requestAnimationFrame(() => drawRelationshipMap());
       }
-      return; // 여기서 1일차 종료!
+      return; // 1일차 종료
   }
 
   // ============================================================
