@@ -1,5 +1,3 @@
-// js/main.js
-
 import { gameState, setCharacters, resetLogs } from './state.js';
 import { 
     renderCharacterList, renderLocations, updateUI, 
@@ -347,4 +345,5 @@ window.closeModal = closeModal;
 window.openRelationshipMap = openRelationshipMap;
 window.closeRelationshipMap = closeRelationshipMap;
 window.clearLogs = clearLogs;
+
 
