@@ -10,7 +10,6 @@ import { getRelationshipLabel, willAttendEvent, calculateFirstImpression, calcul
 import { GAPJA_PERSONALITIES } from './data.js';
 
 // ---- [캐릭터 관리 기능] ----
-
 function addCharacter() {
   if (gameState.characters.length >= 30) return alert("최대 30명까지만 가능합니다.");
   const nameInput = document.getElementById('input-name');
@@ -47,7 +46,6 @@ function addCharacter() {
     specialRelations: {},
     mood: 'normal'
   };
-}
 
   gameState.characters.push(newChar);
 
@@ -62,7 +60,6 @@ function addCharacter() {
       
       if (attendees.length > 0) {
           const attendeeNames = attendees.map(c => c.name).join(', ');
-          // 너무 길면 잘라서 보여주기
           const shortNames = attendees.length > 3 ? `${attendees[0].name} 등 ${attendees.length}명` : attendeeNames;
           logText += `\n📢 ${shortNames}이(가) 나와서 이사 떡을 나눠 먹었다.`;
       } else {
@@ -70,7 +67,7 @@ function addCharacter() {
       }
       
       const moveInLog = { 
-          text: `🚚 [입주] ${newChar.room}호에 새로운 이웃 ${newChar.name}님이 이사왔습니다! 모두가 반갑게 인사해줍니다.`, 
+          text: logText, // 위에서 만든 텍스트 사용
           type: 'event',
           day: gameState.day 
       };
@@ -84,6 +81,7 @@ function addCharacter() {
               let scoreForNewcomer = calculateFirstImpression(existing, newChar);
               let scoreForExisting = calculateFirstImpression(newChar, existing);
               const chem = calculateChemistry(existing, newChar);
+              
               if (chem >= 20) {
                   scoreForNewcomer += 3; // 궁합 좋음
                   scoreForExisting += 3;
@@ -102,6 +100,7 @@ function addCharacter() {
               newChar.relationships[existing.id] = scoreForExisting;
           }
       });
+  } // <--- ★★★ 여기가 빠져 있었습니다! (if 문 닫기)
 
   nameInput.value = '';
   renderCharacterList();
@@ -375,6 +374,7 @@ window.closeModal = closeModal;
 window.openRelationshipMap = openRelationshipMap;
 window.closeRelationshipMap = closeRelationshipMap;
 window.clearLogs = clearLogs;
+
 
 
 
