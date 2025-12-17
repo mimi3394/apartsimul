@@ -95,12 +95,13 @@ export function willAttendEvent(char) {
 
 export function calculateFirstImpression(observer, newcomer) {
   const trait = GAPJA_PERSONALITIES[observer.mbti] || { kindness: 0 };
-  let baseRandom = (Math.random() * 40) - 20;
-  let personalityBonus = trait.kindness;
+  
+  let baseRandom = (Math.random() * 10) - 5;
+  let personalityBonus = trait.kindness * 0.2;
   let chemistry = calculateChemistry(observer, newcomer);
-  let chemBonus = chemistry * 0.1;
+  let chemBonus = chemistry * 0.05;
   let finalScore = baseRandom + personalityBonus + chemBonus;
-  return Math.round(finalScore);
+  return Math.max(-10, Math.min(10, Math.round(finalScore)));
 }
 
 export function getRelationshipLabel(score, specialStatus) {
@@ -120,3 +121,4 @@ export function getRelationshipLabel(score, specialStatus) {
   if (score < 80) return "신뢰";
   return "소울메이트";
 }
+
