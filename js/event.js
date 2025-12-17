@@ -4,7 +4,7 @@ import {
   FIVE_ELEMENTS, CHUNG_PAIRS, WONJIN_PAIRS, MOODS 
 } from './data.js';
 import { getRandom, getJosa, fillTemplate } from './utils.js';
-import { calculateChemistry, calculateDirectionalScore } from './logic.js';
+import { calculateChemistry, calculateDirectionalScore, calculateFirstImpression } from './logic.js';
 import { renderLogs, renderStatusTable, renderLocations, updateUI, drawRelationshipMap } from './ui.js';
 
 
@@ -280,7 +280,6 @@ function processNursingEvents(dailyLogs) {
   });
 }
 
-
 export function nextDay() {
   if (gameState.characters.length === 0) {
     alert("최소 1명의 캐릭터가 필요합니다.");
@@ -289,6 +288,7 @@ export function nextDay() {
   
   const dailyLogs = [];
   
+  // ★★★ [1. 스토리 모드: 1일차 특수 로직] ★★★
   if (gameState.day === 1) {
       // 1. 오프닝 멘트
       dailyLogs.push({ text: "✨ 신축 아파트에 입주가 시작되었습니다! 과연 이곳에서 운명의 사랑을 찾을 수 있을까요?", type: 'event' });
@@ -300,11 +300,27 @@ export function nextDay() {
           c.currentAction = '짐 정리 및 인사'; // 행동 통일
           setMood(c, 'happy');           // 기분 좋음
           
-          // 3. 서로 안면 트기 (모든 사람과 호감도 +5)
+          // 3. 서로 안면 트기 (호감도 계산 적용)
           gameState.characters.forEach(target => {
-              if (c.id !== target.id) {
-                  updateRelationship(c.id, target.id, 5);
+              if (c.id === target.id) return;
+
+              // (1) 첫인상 점수 (성격 + 랜덤)
+              let score = calculateFirstImpression(c, target);
+
+              // (2) 떡 돌리기 대면 결과 (궁합 반영)
+              const chem = calculateChemistry(c, target);
+              
+              if (chem >= 20) {
+                  score += 10; // 궁합 좋으면 더 오름
+              } else if (chem >= -10) {
+                  score += 5;  // 평범하면 소폭 상승
+              } else {
+                  score -= 15; // 궁합 나쁘면 오히려 깎임 (파벌 형성!)
               }
+
+              // 초기 관계 설정
+              if (!c.relationships) c.relationships = {};
+              c.relationships[target.id] = score;
           });
       });
       
