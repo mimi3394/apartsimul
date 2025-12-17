@@ -1211,10 +1211,18 @@ function removeCharacter(id) {
 
 function findEmptyRoom() {
   const counts = {};
-  for (let f = 1; f <= 5; f++) for (let r = 1; r <= 6; r++) counts[`${f}0${r}`] = 0;
-  characters.forEach(c => { if (counts[c.room] !== undefined) counts[c.room]++; });
-  const sorted = Object.keys(counts).sort((a, b) => counts[a] - counts[b]);
-  return counts[sorted[0]] >= 4 ? null : sorted[0];
+  for (let f = 1; f <= 5; f++) {
+    for (let r = 1; r <= 6; r++) {
+      counts[`${f}0${r}`] = 0;
+    }
+  }
+  characters.forEach(c => { 
+    if (counts[c.room] !== undefined) counts[c.room]++; 
+  });
+  const availableRooms = Object.keys(counts).filter(room => counts[room] < 4);
+  if (availableRooms.length === 0) return null;
+  const randomIndex = Math.floor(Math.random() * availableRooms.length);
+  return availableRooms[randomIndex];
 }
 
 function getRoomCount(roomNum) {
@@ -1848,4 +1856,5 @@ function saveRelationshipsToTxt() {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+
 }
