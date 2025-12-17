@@ -1,9 +1,11 @@
+// js/main.js
+
 import { gameState, setCharacters, resetLogs } from './state.js';
 import { 
     renderCharacterList, renderLocations, updateUI, 
     initSajuSelect, initRoomSelect, renderStatusTable, clearLogs, 
-    toggleTheme, openRelationshipMap, closeRelationshipMap,
-    drawRelationshipMap, showAffectionModal, closeModal 
+    toggleTheme, switchTab, openRelationshipMap, closeRelationshipMap,
+    drawRelationshipMap, showAffectionModal, closeModal, renderLogs // <--- renderLogs 추가됨
 } from './ui.js';
 import { nextDay } from './event.js';
 import { getRelationshipLabel } from './logic.js';
@@ -33,7 +35,7 @@ function addCharacter() {
   const ilju = ganInput.value + jiInput.value;
   const gender = genderInput.value;
 
-  gameState.characters.push({
+  const newChar = {
     id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
     name,
     mbti: ilju,
@@ -44,7 +46,33 @@ function addCharacter() {
     relationships: {},
     specialRelations: {},
     mood: 'normal'
-  });
+  };
+
+  gameState.characters.push(newChar);
+
+  // ★★★ [중간 입주 이벤트] 게임이 이미 진행 중일 때(2일차 이상) ★★★
+  if (gameState.day > 1) {
+      const moveInLog = { 
+          text: `🚚 [입주] ${newChar.room}호에 새로운 이웃 ${newChar.name}님이 이사왔습니다! 모두가 반갑게 인사해줍니다.`, 
+          type: 'event',
+          day: gameState.day 
+      };
+      
+      // 로그 저장 및 화면 표시
+      gameState.logs.unshift(moveInLog); // 로그 배열 맨 앞에 추가
+      renderLogs([moveInLog]); // 화면에 즉시 띄우기
+
+      // 기존 주민들과 자동 인사 (호감도 +10 보너스)
+      gameState.characters.forEach(c => {
+          if (c.id !== newChar.id) {
+              if (!c.relationships) c.relationships = {};
+              if (!newChar.relationships) newChar.relationships = {};
+              
+              c.relationships[newChar.id] = 10;
+              newChar.relationships[c.id] = 10;
+          }
+      });
+  }
 
   nameInput.value = '';
   renderCharacterList();
@@ -283,16 +311,6 @@ function saveRelationshipsToTxt() {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-}
-
-function getSpecialStatusBetween(a, b) {
-    const s1 = a?.specialRelations?.[b?.id];
-    const s2 = b?.specialRelations?.[a?.id];
-    if (s1 === 'married' || s2 === 'married') return 'married';
-    if (s1 === 'lover' || s2 === 'lover') return 'lover';
-    if (s1 === 'coldwar' || s2 === 'coldwar') return 'coldwar';
-    if (s1 === 'cut' || s2 === 'cut') return 'cut';
-    return null;
 }
 
 // ---- [초기화 및 윈도우 바인딩] ----
