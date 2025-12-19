@@ -28,25 +28,25 @@ export function fillTemplate(text) {
     return word + getJosa(word, josa);
   });
   return replaced;
+}
 
-  export function getWeightedAction(actionPool, charTags = []) {
+export function getWeightedAction(actionPool, charTags = []) {
   if (!actionPool || actionPool.length === 0) return null;
   if (!charTags || charTags.length === 0) return getRandom(actionPool);
   const weightedPool = actionPool.map(action => {
     let weight = 1;
     if (action.tags && action.tags.some(t => charTags.includes(t))) {
-      weight = 5;
+      weight = 5; // 일치하는 태그가 있으면 확률 5배 증가
     }
     return { action, weight };
   });
-    
   const totalWeight = weightedPool.reduce((sum, item) => sum + item.weight, 0);
   let randomNum = Math.random() * totalWeight;
   for (const item of weightedPool) {
     if (randomNum < item.weight) return item.action;
     randomNum -= item.weight;
   }
-  return actionPool[0];
+  
+  return actionPool[0]; // 안전장치로 첫 번째 행동 반환
 }
 
-}
