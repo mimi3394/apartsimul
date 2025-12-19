@@ -1,9 +1,9 @@
 import { gameState } from './state.js';
 import { 
   ACTIONS, ELEMENT_ACTIONS, PLACES, EVENTS, 
-  FIVE_ELEMENTS, CHUNG_PAIRS, WONJIN_PAIRS, MOODS 
+  FIVE_ELEMENTS, CHUNG_PAIRS, WONJIN_PAIRS, MOODS, GAPJA_PERSONALITIES 
 } from './data.js';
-import { getRandom, getJosa, fillTemplate } from './utils.js';
+import { getRandom, getJosa, fillTemplate, getWeightedAction } from './utils.js';
 import { calculateChemistry, calculateDirectionalScore, calculateFirstImpression, willAttendEvent } from './logic.js';
 import { renderLogs, renderStatusTable, renderLocations, updateUI, drawRelationshipMap } from './ui.js';
 
@@ -1041,5 +1041,6 @@ export function nextDay() {
     requestAnimationFrame(() => drawRelationshipMap());
   }
 }
+
 
 
